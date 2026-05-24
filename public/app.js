@@ -10934,6 +10934,26 @@ function setGalleryItems(items) {
   }
 }
 
+function getLatestHistoryPreviewItem() {
+  const list = Array.isArray(history) ? history : [];
+  for (const item of list) {
+    const normalized = normalizeHistoryItemForRuntime(item);
+    const url = getHistoryPrimaryUrl(normalized);
+    if (url || normalized.modelDownloadUrl || normalized.glbUrl) return normalized;
+  }
+  return null;
+}
+
+function restoreLatestHistoryPreviewIfEmpty() {
+  if (currentPreview) return false;
+  const latest = getLatestHistoryPreviewItem();
+  if (!latest) return false;
+  galleryItems = [latest];
+  galleryIndex = 0;
+  displayResult(latest);
+  return true;
+}
+
 function showGalleryItem(index) {
   if (index < 0 || index >= galleryItems.length) return;
   galleryIndex = index;
@@ -13718,6 +13738,7 @@ function replaceHistoryFromAccount(items, options = {}) {
   scheduleHistoryUIUpdate();
   if (_fhgState.open) renderFhgGallery();
   generateMissingThumbnails();
+  restoreLatestHistoryPreviewIfEmpty();
 }
 
 function appendHistoryFromAccount(items, options = {}) {
@@ -13735,6 +13756,7 @@ function appendHistoryFromAccount(items, options = {}) {
   scheduleHistoryUIUpdate();
   if (_fhgState.open) renderFhgGallery();
   generateMissingThumbnails();
+  restoreLatestHistoryPreviewIfEmpty();
 }
 
 function replaceTasksFromScopedStorage() {
@@ -13955,6 +13977,7 @@ if (window._restoredPreviewState) {
   }
   delete window._restoredPreviewState;
 }
+restoreLatestHistoryPreviewIfEmpty();
 
 // Atomic video restore: runs once after video models have loaded.
 // Idempotent — can be re-invoked to reassert the saved selection if anything
@@ -14067,9 +14090,6 @@ window.scheduleVideoRestoreWatchdog = scheduleVideoRestoreWatchdog;
 hookNewsLocaleUpdates();
 if (window.I18N) window.I18N.init();
 refreshModelNews(true);
-
-
-
 
 
 
