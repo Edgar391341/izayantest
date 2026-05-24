@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#09090b">
+    <title>Nano Banana Studio</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="icon" href="data:,">
+</head>
+
+<body>
+    <div class="app-layout">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="profile-menu-wrap">
+                <button class="profile-btn" onclick="toggleProfileMenu()" id="profileBtn" title="Menu">
+                    <span class="profile-btn-avatar" id="profileBtnAvatar" style="display:none;"></span>
+                    <i data-lucide="user" id="profileBtnIcon"></i>
+                    <span class="profile-badge" id="profileBadge" style="display:none;"></span>
+                </button>
+                <div class="profile-dropdown" id="profileDropdown">
+                    <div class="profile-dropdown-account" id="accountMenuSummary" style="display:none;">
+                        <div class="profile-dropdown-avatar" id="accountMenuAvatar">N</div>
+                        <div class="profile-dropdown-meta">
+                            <span class="profile-dropdown-name" id="accountMenuName">Guest</span>
+                            <span class="profile-dropdown-email" id="accountMenuEmail"></span>
+                        </div>
+                    </div>
+                    <button class="profile-dropdown-item" onclick="openProfilePage(); toggleProfileMenu();" id="profileOpenDropdown">
+                        <i data-lucide="user"></i>
+                        <span id="profileMenuLabel">Profile</span>
+                    </button>
+                    <button class="profile-dropdown-item" onclick="toggleNews(); toggleProfileMenu();" id="newsToggleDropdown">
+                        <i data-lucide="newspaper"></i>
+                        <span data-i18n="news_title">News</span>
+                        <span class="news-badge" id="newsBadge" style="display:none;">0</span>
+                    </button>
+                    <button class="profile-dropdown-item" onclick="toggleLangPicker(); toggleProfileMenu();">
+                        <i data-lucide="globe"></i>
+                        <span data-i18n="lang_title">Language</span>
+                    </button>
+                </div>
+            </div>
+            <nav class="mode-tabs">
+                <button class="tab active" onclick="switchMode('tools')" id="mode-tools">
+                    <i data-lucide="wrench"></i><span data-i18n="tab_tools">Tools</span>
+                </button>
+            </nav>
+            <button class="history-toggle" onclick="toggleHistory()" id="historyToggle">
+                <i data-lucide="clock"></i>
+                <span data-i18n="history_title">History</span>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Controls Panel (Left) -->
+            <section class="controls-panel">
+                <div class="controls-scroll">
+                    <!-- Prompt -->
+                    <div class="control-group" id="promptGroup">
+                        <textarea id="promptInput" data-i18n-placeholder="prompt_placeholder" placeholder="Describe what you want to create..." rows="2"></textarea>
+                        <span id="promptImgRefHint" class="prompt-img-ref-hint" style="display:none" data-i18n="prompt_img_ref_hint">Tip: use @1, @2… in prompt to reference uploaded images by number</span>
+                    </div>
+
+                    <!-- Style/Edit Mode Uploads -->
+                    <div id="imageUploadGroup" class="control-group" style="display: none;">
+                        <label class="group-label" data-i18n="label_source_images">Source Images</label>
+                        <div class="upload-zone" onclick="document.getElementById('imageInput').click()" id="imageDropzone">
+                            <i data-lucide="image-plus"></i>
+                            <span data-i18n="upload_click_drag">Click or drag images</span>
+                            <input type="file" id="imageInput" accept="image/*" multiple hidden>
+                        </div>
+                        <div id="imagePreviewGrid" class="upload-preview-grid"></div>
+                        
+                        <label class="group-label" style="margin-top:0.75rem;" data-i18n="label_mask_optional">Mask (Optional)</label>
+                        <div class="upload-zone small" onclick="document.getElementById('maskInput').click()" id="maskDropzone">
+                            <i data-lucide="scan"></i>
+                            <span id="maskUploadLabel" data-i18n="upload_mask">Upload mask</span>
+                            <input type="file" id="maskInput" accept="image/*" hidden>
+                        </div>
+
+                        <div class="settings-row">
+                            <div class="field">
+                                <label>Model</label>
+                                <select id="imageModelEdit"></select>
+                            </div>
+                            <div class="field">
+                                <label>Format</label>
+                                <select id="editOutputFormat">
+                                    <option value="png">PNG</option>
+                                    <option value="jpeg">JPEG</option>
+                                    <option value="webp">WebP</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- GPT Image Edit Settings -->
+                        <div id="gptEditOptions" style="display:none;">
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Size</label>
+                                    <select id="editImageSize">
+                                        <option value="auto">Auto</option>
+                                        <option value="square_hd">Square HD</option>
+                                        <option value="square">Square</option>
+                                        <option value="portrait_4_3">Portrait 4:3</option>
+                                        <option value="portrait_16_9">Portrait 16:9</option>
+                                        <option value="landscape_4_3">Landscape 4:3</option>
+                                        <option value="landscape_16_9">Landscape 16:9</option>
+                                        <option value="custom">Custom</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Quality</label>
+                                    <select id="editQuality">
+                                        <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-row gpt-custom-size-fields" id="gptEditCustomSizeFields" style="display:none;">
+                                <div class="field gpt-size-slider-field">
+                                    <div class="gpt-size-slider-head">
+                                        <label for="editImageWidth">Width</label>
+                                        <input type="number" class="gpt-size-slider-value gpt-size-slider-value-input" id="editImageWidthValue" step="1" value="1024" aria-label="Width">
+                                    </div>
+                                    <input type="range" id="editImageWidth" min="1" max="4096" step="1" value="1024">
+                                </div>
+                                <div class="field gpt-size-slider-field">
+                                    <div class="gpt-size-slider-head">
+                                        <label for="editImageHeight">Height</label>
+                                        <input type="number" class="gpt-size-slider-value gpt-size-slider-value-input" id="editImageHeightValue" step="1" value="1536" aria-label="Height">
+                                    </div>
+                                    <input type="range" id="editImageHeight" min="1" max="4096" step="1" value="1536">
+                                </div>
+                            </div>
+                            <div class="edit-max-hint" id="gptEditCustomSizeHint" style="display:none;"></div>
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Sync Mode</label>
+                                    <select id="editSyncMode">
+                                        <option value="false" selected>Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="editBackgroundField">
+                                    <label>Background</label>
+                                    <select id="editBackground">
+                                        <option value="auto">Auto</option>
+                                        <option value="opaque">Opaque</option>
+                                        <option value="transparent">Transparent</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="field" id="editInputFidelityField">
+                                    <label>Fidelity</label>
+                                    <select id="editInputFidelity">
+                                        <option value="high">High</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Nano Banana Pro Edit Settings -->
+                        <div id="nanoEditOptions" style="display:none;">
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Resolution</label>
+                                    <select id="editNanoResolution">
+                                        <option value="1K">1K</option>
+                                        <option value="2K">2K</option>
+                                        <option value="4K">4K</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Web Search</label>
+                                    <select id="editNanoWebSearch">
+                                        <option value="false">Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Ratio</label>
+                                    <select id="editNanoAspectRatio">
+                                        <option value="16:9">16:9</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="1:1">1:1</option>
+                                        <option value="3:4">3:4</option>
+                                        <option value="9:16">9:16</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Nano Banana 2 Edit Settings -->
+                        <div id="nano2EditOptions" style="display:none;">
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Resolution</label>
+                                    <select id="editNano2Resolution">
+                                        <option value="1K">1K</option>
+                                        <option value="2K">2K</option>
+                                        <option value="4K">4K</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Safety</label>
+                                    <select id="editNano2SafetyTolerance">
+                                        <option value="1">1 (Strictest)</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4" selected>4 (Default)</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6 (Least)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Seed</label>
+                                    <input type="number" id="editNano2Seed" placeholder="Random">
+                                </div>
+                                <div class="field">
+                                    <label>Web Search</label>
+                                    <select id="editNano2WebSearch">
+                                        <option value="false">Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-row">
+                                <div class="field">
+                                    <label>Google Search</label>
+                                    <select id="editNano2GoogleSearch">
+                                        <option value="false">Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Ratio</label>
+                                    <select id="editNano2AspectRatio">
+                                        <option value="16:9">16:9</option>
+                                        <option value="4:3">4:3</option>
+                                        <option value="1:1">1:1</option>
+                                        <option value="3:4">3:4</option>
+                                        <option value="9:16">9:16</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3D Mode -->
+                    <div id="threeDUploadGroup" class="section-block" style="display: none;">
+                        <div class="field full-width">
+                            <label>3D Model</label>
+                            <select id="threeDModel"></select>
+                        </div>
+
+                        <div id="threeDImageUploadWrap">
+                            <div class="upload-grid">
+                                <div class="upload-item">
+                                    <label>Front *</label>
+                                    <div class="upload-area compact" onclick="document.getElementById('threeDFrontInput').click()" id="threeDFrontDropzone">
+                                        <i data-lucide="image-plus"></i>
+                                        <span id="threeDFrontLabel">Upload</span>
+                                        <input type="file" id="threeDFrontInput" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                                <div class="upload-item" id="threeDBackUploadItem">
+                                    <label>Back</label>
+                                    <div class="upload-area compact" onclick="document.getElementById('threeDBackInput').click()" id="threeDBackDropzone">
+                                        <i data-lucide="image-plus"></i>
+                                        <span id="threeDBackLabel">Upload</span>
+                                        <input type="file" id="threeDBackInput" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                                <div class="upload-item" id="threeDLeftUploadItem">
+                                    <label>Left</label>
+                                    <div class="upload-area compact" onclick="document.getElementById('threeDLeftInput').click()" id="threeDLeftDropzone">
+                                        <i data-lucide="image-plus"></i>
+                                        <span id="threeDLeftLabel">Upload</span>
+                                        <input type="file" id="threeDLeftInput" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                                <div class="upload-item" id="threeDRightUploadItem">
+                                    <label>Right</label>
+                                    <div class="upload-area compact" onclick="document.getElementById('threeDRightInput').click()" id="threeDRightDropzone">
+                                        <i data-lucide="image-plus"></i>
+                                        <span id="threeDRightLabel">Upload</span>
+                                        <input type="file" id="threeDRightInput" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hunyuan Settings -->
+                        <div class="settings-grid" id="threeDHunyuanSettings">
+                            <div class="field">
+                                <label>Type</label>
+                                <select id="threeDGenerateType">
+                                    <option value="Normal">Normal</option>
+                                    <option value="LowPoly">LowPoly</option>
+                                    <option value="Geometry">Geometry</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>PBR</label>
+                                <select id="threeDEnablePbr">
+                                    <option value="false">Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Faces</label>
+                                <input type="number" id="threeDFaceCount" min="40000" max="1500000" step="1000" placeholder="500000">
+                            </div>
+                            <div class="field">
+                                <label>Polygon</label>
+                                <select id="threeDPolygonType">
+                                    <option value="triangle">Triangle</option>
+                                    <option value="quadrilateral">Quad</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Meshy Settings -->
+                        <div id="threeDMeshySettings" style="display: none;">
+                            <div class="settings-grid">
+                                <div class="field" id="threeDMeshyTextOnly">
+                                    <label>Mode</label>
+                                    <select id="threeDMeshyMode">
+                                        <option value="full" selected>Full</option>
+                                        <option value="preview">Preview</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="threeDMeshyTextOnly2">
+                                    <label>Style</label>
+                                    <select id="threeDMeshyArtStyle">
+                                        <option value="realistic" selected>Realistic</option>
+                                        <option value="sculpture">Sculpture</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Topology</label>
+                                    <select id="threeDMeshyTopology">
+                                        <option value="triangle" selected>Triangle</option>
+                                        <option value="quad">Quad</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Symmetry</label>
+                                    <select id="threeDMeshySymmetryMode">
+                                        <option value="auto" selected>Auto</option>
+                                        <option value="off">Off</option>
+                                        <option value="on">On</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="settings-grid">
+                                <div class="field">
+                                    <label>Polycount</label>
+                                    <input type="number" id="threeDMeshyTargetPolycount" min="100" max="300000" step="100" placeholder="30000">
+                                </div>
+                                <div class="field">
+                                    <label>Remesh</label>
+                                    <select id="threeDMeshyShouldRemesh">
+                                        <option value="true" selected>Yes</option>
+                                        <option value="false">No</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="threeDMeshyImageOnly">
+                                    <label>Texture</label>
+                                    <select id="threeDMeshyShouldTexture">
+                                        <option value="true" selected>Yes</option>
+                                        <option value="false">No</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>PBR</label>
+                                    <select id="threeDMeshyEnablePbr">
+                                        <option value="false" selected>Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="settings-grid">
+                                <div class="field">
+                                    <label>A/T Pose</label>
+                                    <select id="threeDMeshyIsATPose">
+                                        <option value="false" selected>No</option>
+                                        <option value="true">Yes</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="threeDMeshyTextOnly3">
+                                    <label>Expand</label>
+                                    <select id="threeDMeshyEnablePromptExpansion">
+                                        <option value="false" selected>Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Safety</label>
+                                    <select id="threeDMeshyEnableSafetyChecker">
+                                        <option value="true" selected>On</option>
+                                        <option value="false">Off</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="threeDMeshyTextOnly4">
+                                    <label>Seed</label>
+                                    <input type="number" id="threeDMeshySeed" placeholder="Random">
+                                </div>
+                            </div>
+
+                            <div class="settings-grid two-col">
+                                <div class="field">
+                                    <label>Texture Prompt</label>
+                                    <input type="text" id="threeDMeshyTexturePrompt" placeholder="e.g. glossy ceramic">
+                                </div>
+                                <div class="field">
+                                    <label>Texture URL</label>
+                                    <input type="text" id="threeDMeshyTextureImageUrl" placeholder="https://...">
+                                </div>
+                            </div>
+
+                            <div class="upload-item" style="margin-top: 0.75rem;">
+                                <label>Texture Image</label>
+                                <div class="upload-area compact" onclick="document.getElementById('threeDMeshyTextureImageInput').click()" id="threeDMeshyTextureImageDropzone">
+                                    <i data-lucide="image-plus"></i>
+                                    <span id="threeDMeshyTextureImageLabel">Upload texture</span>
+                                    <input type="file" id="threeDMeshyTextureImageInput" accept="image/*" hidden>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rapid Image-to-3D Settings -->
+                        <div id="threeDRapidSettings" class="settings-grid" style="display: none;">
+                            <div class="field">
+                                <label>PBR</label>
+                                <select id="threeDRapidEnablePbr">
+                                    <option value="false" selected>Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Geometry Only</label>
+                                <select id="threeDRapidEnableGeometry">
+                                    <option value="false" selected>Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Smart Topology Settings -->
+                        <div id="threeDTopologySettings" style="display: none;">
+                            <div class="upload-item" style="margin-bottom: 0.75rem;">
+                                <label>3D File (GLB/OBJ) *</label>
+                                <div class="upload-area compact" onclick="document.getElementById('threeDTopologyFileInput').click()" id="threeDTopologyFileDropzone">
+                                    <i data-lucide="box"></i>
+                                    <span id="threeDTopologyFileLabel">Upload GLB or OBJ</span>
+                                    <input type="file" id="threeDTopologyFileInput" accept=".glb,.obj" hidden>
+                                </div>
+                            </div>
+                            <div class="settings-grid">
+                                <div class="field">
+                                    <label>File Type</label>
+                                    <select id="threeDTopologyFileType">
+                                        <option value="glb" selected>GLB</option>
+                                        <option value="obj">OBJ</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Polygon</label>
+                                    <select id="threeDTopologyPolygonType">
+                                        <option value="triangle" selected>Triangle</option>
+                                        <option value="quadrilateral">Quad</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Detail Level</label>
+                                    <select id="threeDTopologyFaceLevel">
+                                        <option value="high">High</option>
+                                        <option value="medium" selected>Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Meshy V5 Retexture Settings -->
+                        <div id="threeDRetextureSettings" style="display: none;">
+                            <div class="upload-item" style="margin-bottom: 0.75rem;">
+                                <label>3D Model (GLB/OBJ/FBX/STL) *</label>
+                                <div class="upload-area compact" onclick="document.getElementById('threeDRetextureModelInput').click()" id="threeDRetextureModelDropzone">
+                                    <i data-lucide="box"></i>
+                                    <span id="threeDRetextureModelLabel">Upload 3D model</span>
+                                    <input type="file" id="threeDRetextureModelInput" accept=".glb,.gltf,.obj,.fbx,.stl" hidden>
+                                </div>
+                            </div>
+                            <div class="settings-grid two-col">
+                                <div class="field">
+                                    <label>Style Prompt</label>
+                                    <input type="text" id="threeDRetextureStylePrompt" placeholder="e.g. red and black chest" maxlength="600">
+                                </div>
+                                <div class="field">
+                                    <label>Style Image</label>
+                                    <div class="upload-area compact" onclick="document.getElementById('threeDRetextureStyleImageInput').click()" id="threeDRetextureStyleImageDropzone">
+                                        <i data-lucide="image-plus"></i>
+                                        <span id="threeDRetextureStyleImageLabel">Upload style</span>
+                                        <input type="file" id="threeDRetextureStyleImageInput" accept="image/*" hidden>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="settings-grid">
+                                <div class="field">
+                                    <label>Original UV</label>
+                                    <select id="threeDRetextureOriginalUv">
+                                        <option value="true" selected>Yes</option>
+                                        <option value="false">No</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>PBR</label>
+                                    <select id="threeDRetextureEnablePbr">
+                                        <option value="false" selected>Off</option>
+                                        <option value="true">On</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label>Safety</label>
+                                    <select id="threeDRetextureEnableSafety">
+                                        <option value="true" selected>On</option>
+                                        <option value="false">Off</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video Mode -->
+                    <div id="videoUploadGroup" class="section-block" style="display: none;">
+                        <!-- Tier 1: Engine selector (segmented control) -->
+                        <div class="video-engine-bar" id="videoEngineBar" role="tablist" aria-label="Video engine"></div>
+
+                        <!-- Tier 2: Mode bar -->
+                        <div class="video-mode-bar" id="videoModeBar" role="tablist" aria-label="Mode"></div>
+
+                        <!-- Tier 3: Variant chips (populated by JS) -->
+                        <div class="video-variant-row" id="videoVariantRow" hidden></div>
+
+                        <!-- Sentinel: legacy IDs kept hidden so existing JS toggles still work. -->
+                        <div id="videoLegacyTabs" hidden aria-hidden="true">
+                            <button id="vtab-text" data-i18n="vtab_text">Text</button>
+                            <button id="vtab-image" data-i18n="vtab_image">Image</button>
+                            <button id="vtab-video" data-i18n="vtab_video">Video</button>
+                            <button id="vtab-reference" data-i18n="vtab_ref">Ref</button>
+                            <button id="vtab-audio" data-i18n="vtab_audio">Audio</button>
+                        </div>
+                    </div>
+
+                    <div id="seedance2UploadGroup" class="section-block" style="display: none;">
+                        <!-- Legacy family-tabs sentinel (kept hidden; visible UI is in #videoModeBar) -->
+                        <div id="seedance2FamilyTabs" hidden aria-hidden="true">
+                            <button id="seedance2family-text"></button>
+                            <button id="seedance2family-image"></button>
+                            <button id="seedance2family-reference"></button>
+                        </div>
+
+                        <!-- Hidden model select (kept for JS persistence; UI uses variant chips) -->
+                        <div hidden style="display:none">
+                            <select id="seedance2Model"></select>
+                        </div>
+
+                        <!-- Hidden variant tabs sentinel (variant chips are now in #videoVariantRow) -->
+                        <div id="seedance2VariantTabs" hidden aria-hidden="true"></div>
+                        <div class="video-family-note seedance2-model-note" id="seedance2ModelNote" hidden></div>
+
+                        <div id="seedance2ReferenceGroup" class="seedance2-reference-group" style="display:none;">
+                            <div class="seedance2-reference-tip" id="seedance2ReferenceTip" data-i18n="seedance2_reference_tip">
+                                Use @1 for image 1, @2 for image 2, @Video1 for video 1, and @Audio1 for audio 1.
+                            </div>
+                            <div class="settings-grid" style="margin-top:0.65rem;">
+                                <div class="field">
+                                    <label data-i18n="seedance2_label_reference_images">Reference Images (max 9)</label>
+                                    <div class="upload-zone small" id="seedance2RefImagesDropzone" onclick="document.getElementById('seedance2ReferenceImagesInput').click()">
+                                        <i data-lucide="images"></i>
+                                        <span id="seedance2RefImagesLabel" data-i18n="select_images">Select images</span>
+                                        <input id="seedance2ReferenceImagesInput" type="file" accept="image/*" multiple hidden />
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label data-i18n="seedance2_label_reference_videos">Reference Videos (max 3)</label>
+                                    <div class="upload-zone small" id="seedance2RefVideosDropzone" onclick="document.getElementById('seedance2ReferenceVideosInput').click()">
+                                        <i data-lucide="film"></i>
+                                        <span id="seedance2RefVideosLabel" data-i18n="upload_video">Upload video</span>
+                                        <input id="seedance2ReferenceVideosInput" type="file" accept="video/*" multiple hidden />
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label data-i18n="seedance2_label_reference_audio">Reference Audio (max 3)</label>
+                                    <div class="upload-zone small" id="seedance2RefAudiosDropzone" onclick="document.getElementById('seedance2ReferenceAudiosInput').click()">
+                                        <i data-lucide="music"></i>
+                                        <span id="seedance2RefAudiosLabel" data-i18n="select_audio">Select audio</span>
+                                        <input id="seedance2ReferenceAudiosInput" type="file" accept="audio/*" multiple hidden />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="seedance2-reference-board" id="seedance2ReferenceTokenBoard"></div>
+                        </div>
+                    </div>
+
+                    <div id="ltx23UploadGroup" class="section-block" style="display: none;">
+                        <!-- Legacy family-tabs sentinel -->
+                        <div id="ltx23FamilyTabs" hidden aria-hidden="true">
+                            <button id="ltx23family-text"></button>
+                            <button id="ltx23family-image"></button>
+                            <button id="ltx23family-video"></button>
+                            <button id="ltx23family-audio"></button>
+                        </div>
+
+                        <!-- Hidden model select (UI uses variant chips) -->
+                        <div hidden style="display:none">
+                            <select id="ltx23Model"></select>
+                        </div>
+
+                        <!-- Hidden variant tabs sentinel -->
+                        <div id="ltx23VariantTabs" hidden aria-hidden="true"></div>
+                    </div>
+
+                    <!-- Kling 3 controls are embedded into Video via public/app.js -->
+                    <div id="kling3UploadGroup" class="section-block" style="display: none;">
+                        <!-- Legacy Kling family/mode buttons (hidden; visible UI is in #videoEngineBar / #videoModeBar / #videoVariantRow) -->
+                        <div id="kling3FamilyTabs" hidden aria-hidden="true">
+                            <button id="k3family-v3"></button>
+                            <button id="k3family-o3"></button>
+                        </div>
+                        <div id="kling3ModeTabsV3" hidden aria-hidden="true">
+                            <button id="k3tab-v3-text"></button>
+                            <button id="k3tab-v3-image"></button>
+                            <button id="k3tab-v3-motion"></button>
+                        </div>
+                        <div id="kling3ModeTabsO3" hidden aria-hidden="true">
+                            <button id="k3tab-o3-text"></button>
+                            <button id="k3tab-o3-image"></button>
+                            <button id="k3tab-o3-ref"></button>
+                            <button id="k3tab-o3-v2v"></button>
+                        </div>
+
+                        <!-- Kling 3 Controls -->
+                        <div id="kling3Controls">
+                            <!-- Hidden Kling model select (UI uses variant chips in #videoVariantRow) -->
+                            <div hidden style="display:none">
+                                <select id="kling3Model"></select>
+                            </div>
+
+                            <!-- Start Image Upload (for I2V modes) -->
+                            <div class="settings-row" style="margin-top:0.5rem;" id="kling3StartImageGroup">
+                                <div class="field">
+                                    <label>Start Image *</label>
+                                    <div class="upload-zone small" onclick="document.getElementById('kling3StartImageInput').click()">
+                                        <i data-lucide="image"></i>
+                                        <span id="kling3StartImageLabel">Select image</span>
+                                        <input id="kling3StartImageInput" type="file" accept="image/*" hidden />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- End Image Upload (optional) -->
+                            <div class="settings-row" style="margin-top:0.5rem;" id="kling3EndImageGroup">
+                                <div class="field">
+                                    <label>End Image (optional)</label>
+                                    <div class="upload-zone small" onclick="document.getElementById('kling3EndImageInput').click()">
+                                        <i data-lucide="image"></i>
+                                        <span id="kling3EndImageLabel">Select image</span>
+                                        <input id="kling3EndImageInput" type="file" accept="image/*" hidden />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Video Upload (for V2V modes) -->
+                            <div class="settings-row" style="margin-top:0.5rem;" id="kling3VideoGroup">
+                                <div class="field">
+                                    <label>Video URL or Upload</label>
+                                    <input id="kling3VideoUrlInput" type="text" placeholder="https://...mp4" style="margin-bottom:0.35rem;" />
+                                    <div class="upload-zone small" onclick="document.getElementById('kling3VideoInput').click()">
+                                        <i data-lucide="film"></i>
+                                        <span id="kling3VideoLabel">Upload video</span>
+                                        <input id="kling3VideoInput" type="file" accept="video/*" hidden />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Reference Images (for O3 Ref/V2V modes) -->
+                            <div class="field" id="kling3RefImagesGroup" style="margin-top:0.5rem;">
+                                <label>Reference Images (max 4)</label>
+                                <div class="upload-zone small" onclick="document.getElementById('kling3RefImagesInput').click()">
+                                    <i data-lucide="images"></i>
+                                    <span id="kling3RefImagesLabel">Select images</span>
+                                    <input id="kling3RefImagesInput" type="file" accept="image/*" multiple hidden />
+                                </div>
+                            </div>
+
+                            <!-- Elements Section (for V3 I2V) -->
+                            <div id="kling3ElementsGroup" style="margin-top:0.5rem;">
+                                <div class="field">
+                                    <label style="display:flex; align-items:center; justify-content:space-between;">
+                                        <span>Elements (use @Element1, @Element2 in prompt)</span>
+                                        <button type="button" class="sub-tab" onclick="addKling3Element()" style="padding:0.25rem 0.5rem; font-size:0.7rem;">
+                                            <i data-lucide="plus" style="width:12px;height:12px;"></i> Add
+                                        </button>
+                                    </label>
+                                </div>
+                                <div id="kling3ElementsList" style="margin-top:0.35rem;"></div>
+                            </div>
+
+                            <!-- Basic Settings -->
+                            <div class="settings-grid" style="margin-top:0.5rem;" id="kling3BasicSettings">
+                                <div class="field" id="kling3DurationGroup">
+                                    <label>Duration</label>
+                                    <select id="kling3Duration">
+                                        <option value="3">3s</option>
+                                        <option value="4">4s</option>
+                                        <option value="5" selected>5s</option>
+                                        <option value="6">6s</option>
+                                        <option value="7">7s</option>
+                                        <option value="8">8s</option>
+                                        <option value="9">9s</option>
+                                        <option value="10">10s</option>
+                                        <option value="11">11s</option>
+                                        <option value="12">12s</option>
+                                        <option value="13">13s</option>
+                                        <option value="14">14s</option>
+                                        <option value="15">15s</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="kling3AspectRatioGroup">
+                                    <label>Aspect Ratio</label>
+                                    <select id="kling3AspectRatio">
+                                        <option value="16:9" selected>16:9</option>
+                                        <option value="9:16">9:16</option>
+                                        <option value="1:1">1:1</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="kling3ShotTypeGroup">
+                                    <label>Shot Type</label>
+                                    <select id="kling3ShotType">
+                                        <option value="customize" selected>Customize</option>
+                                        <option value="intelligent">Intelligent</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="kling3CfgScaleGroup">
+                                    <label>CFG Scale</label>
+                                    <select id="kling3CfgScale">
+                                        <option value="0.3">0.3</option>
+                                        <option value="0.4">0.4</option>
+                                        <option value="0.5" selected>0.5</option>
+                                        <option value="0.6">0.6</option>
+                                        <option value="0.7">0.7</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Motion Control Settings (V3 Motion models) -->
+                            <div class="settings-grid" style="margin-top:0.5rem; display:none;" id="kling3MotionSettings">
+                                <div class="field" id="kling3MotionOrientationGroup">
+                                    <label>Character Orientation</label>
+                                    <select id="kling3MotionOrientation">
+                                        <option value="video" selected>Video</option>
+                                        <option value="image">Image</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="kling3KeepOriginalSoundGroup">
+                                    <label>Keep Original Sound</label>
+                                    <select id="kling3KeepOriginalSound">
+                                        <option value="true" selected>On</option>
+                                        <option value="false">Off</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Audio & Voice Settings -->
+                            <div class="settings-grid" style="margin-top:0.5rem;" id="kling3AudioSettings">
+                                <div class="field">
+                                    <label>Generate Audio</label>
+                                    <select id="kling3GenerateAudio">
+                                        <option value="true" selected>On</option>
+                                        <option value="false">Off</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="kling3KeepAudioGroup">
+                                    <label>Keep Audio</label>
+                                    <select id="kling3KeepAudio">
+                                        <option value="true" selected>On</option>
+                                        <option value="false">Off</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Voice IDs (V3 only) -->
+                            <div class="field" id="kling3VoiceGroup" style="margin-top:0.5rem;">
+                                <label>Voice IDs (use &lt;&lt;&lt;voice_1&gt;&gt;&gt; in prompt, max 2)</label>
+                                <input id="kling3VoiceIds" type="text" placeholder="voice_id_1, voice_id_2" />
+                            </div>
+
+                            <!-- Negative Prompt -->
+                            <div class="field" id="kling3NegativePromptGroup" style="margin-top:0.5rem;">
+                                <label>Negative Prompt</label>
+                                <input id="kling3NegativePrompt" type="text" placeholder="blur, distort, low quality" />
+                            </div>
+
+                            <!-- Multi-Prompt Section (Optional) -->
+                            <div id="kling3MultiPromptSection" style="margin-top:0.75rem;">
+                                <div class="field">
+                                    <label style="display:flex; align-items:center; gap:0.5rem;">
+                                        <input type="checkbox" id="kling3UseMultiPrompt" style="width:auto;" />
+                                        Multi-Prompt Mode (multi-shot)
+                                    </label>
+                                </div>
+                                <div id="kling3MultiPromptContainer" style="display:none; margin-top:0.5rem;">
+                                    <div id="kling3MultiPromptList"></div>
+                                    <button type="button" class="sub-tab" onclick="addKling3MultiPromptItem()" style="margin-top:0.5rem; width:100%;">
+                                        <i data-lucide="plus"></i> Add Shot
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tools Mode -->
+                    <div id="toolsSection" class="section-block" style="display: none;">
+                        <div class="tools-suite-nav" id="toolsSuiteNav">
+                            <button type="button" class="tools-suite-tab tools-suite-tab-active" data-tools-tool="card-studio" onclick="switchToolsTool('card-studio')">
+                                <i data-lucide="layout-template"></i>
+                                <span>Card Studio</span>
+                            </button>
+                        </div>
+
+                        <div id="toolsCardStudioWorkspace" class="tools-workspace tools-workspace-active">
+
+                        <!-- Wizard Progress -->
+                        <div class="wiz-progress">
+                            <div class="wiz-track-bar"><div class="wiz-track-fill" id="wizFill"></div></div>
+                            <div class="wiz-dots">
+                                <button type="button" class="wiz-dot wiz-dot-active" onclick="wizGoTo(0)" data-wiz-dot="0">
+                                    <span class="wiz-dot-ring"><i data-lucide="camera"></i></span>
+                                    <span class="wiz-dot-lbl" data-i18n="wiz_dot_photos">Photos</span>
+                                </button>
+                                <button type="button" class="wiz-dot" onclick="wizGoTo(1)" data-wiz-dot="1">
+                                    <span class="wiz-dot-ring"><i data-lucide="type"></i></span>
+                                    <span class="wiz-dot-lbl" data-i18n="wiz_dot_title">Title</span>
+                                </button>
+                                <button type="button" class="wiz-dot" onclick="wizGoTo(2)" data-wiz-dot="2">
+                                    <span class="wiz-dot-ring"><i data-lucide="list-checks"></i></span>
+                                    <span class="wiz-dot-lbl" data-i18n="wiz_dot_details">Details</span>
+                                </button>
+                                <button type="button" class="wiz-dot" onclick="wizGoTo(3)" data-wiz-dot="3">
+                                    <span class="wiz-dot-ring"><i data-lucide="paintbrush"></i></span>
+                                    <span class="wiz-dot-lbl" data-i18n="wiz_dot_style">Style</span>
+                                </button>
+                                <button type="button" class="wiz-dot" onclick="wizGoTo(4)" data-wiz-dot="4">
+                                    <span class="wiz-dot-ring"><i data-lucide="eye"></i></span>
+                                    <span class="wiz-dot-lbl" data-i18n="wiz_dot_inspiration">Inspiration</span>
+                                </button>
+                                <button type="button" class="wiz-dot" onclick="wizGoTo(5)" data-wiz-dot="5">
+                                    <span class="wiz-dot-ring"><i data-lucide="sparkles"></i></span>
+                                    <span class="wiz-dot-lbl" data-i18n="wiz_dot_generate">Generate</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Floating Image Strip (visible after upload) -->
+                        <div class="wiz-img-strip" id="wizImgStrip"></div>
+
+                        <!-- Steps Viewport -->
+                        <div class="wiz-viewport" id="wizViewport">
+
+                            <!-- Step 0: Photos -->
+                            <div class="wiz-panel wiz-panel-active wiz-panel-intro" data-wiz-panel="0">
+                                <div class="wiz-head">
+                                    <h3 data-i18n="wiz_step_photos">Upload Product Photos</h3>
+                                    <p data-i18n="wiz_step_photos_desc">Add reference photos of your product for the card design.</p>
+                                </div>
+                                <div class="upload-zone wiz-drop" onclick="document.getElementById('toolsImageInput').click()" id="toolsImageDropzone">
+                                    <div class="wiz-drop-icon"><i data-lucide="image-plus"></i></div>
+                                    <span class="wiz-drop-text" id="toolsImageLabel" data-i18n="wiz_upload_text">Click or drag product images</span>
+                                    <span class="wiz-drop-hint" data-i18n="wiz_upload_hint">PNG, JPG up to 14 images</span>
+                                    <input type="file" id="toolsImageInput" accept="image/*" multiple hidden>
+                                </div>
+                                <div id="toolsImagePreviewGrid" class="upload-preview-grid"></div>
+                            </div>
+
+                            <!-- Step 1: Title -->
+                            <div class="wiz-panel" data-wiz-panel="1">
+                                <div class="wiz-head">
+                                    <h3 data-i18n="wiz_step_title">Card Title</h3>
+                                    <p data-i18n="wiz_step_title_desc">Choose a short, bold headline for your product card.</p>
+                                </div>
+                                <textarea id="toolsTitleInput" class="wiz-input wiz-input-grow" data-i18n-placeholder="wiz_title_placeholder" placeholder="Type your title or pick below..." autocomplete="off" rows="1"></textarea>
+                                <div class="wiz-chips-row">
+                                    <div class="wiz-chips" id="wizTitleChips"></div>
+                                    <button type="button" class="wiz-preset-manage-btn" onclick="openPresetManager()" data-i18n-title="wiz_preset_manage_btn" title="Manage presets">
+                                        <i data-lucide="settings-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Step 2: Characteristics -->
+                            <div class="wiz-panel" data-wiz-panel="2">
+                                <div class="wiz-head">
+                                    <h3 data-i18n="wiz_step_details">Characteristics</h3>
+                                    <p data-i18n="wiz_step_details_desc">Add key features shown with icons on the card. Tap chips to quick-add.</p>
+                                </div>
+                                <div id="toolsCharsList" class="tools-chars-list"></div>
+                                <button type="button" class="tools-add-btn" onclick="toolsAddChar()">
+                                    <i data-lucide="plus"></i> <span data-i18n="wiz_add_custom">Add Custom</span>
+                                </button>
+                                <div class="wiz-chips-row wiz-chips-wrap">
+                                    <div class="wiz-chips" id="wizCharChips"></div>
+                                    <button type="button" class="wiz-preset-manage-btn" onclick="openPresetManager('char')" data-i18n-title="wiz_preset_manage_btn" title="Manage presets">
+                                        <i data-lucide="settings-2"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Step 3: Font Style -->
+                            <div class="wiz-panel" data-wiz-panel="3">
+                                <div class="wiz-head">
+                                    <h3 data-i18n="wiz_step_style">Font Style</h3>
+                                    <p data-i18n="wiz_step_style_desc">Pick a heading font style. Type a word to preview it.</p>
+                                </div>
+                                <input type="text" id="wizFontPreviewText" class="wiz-input" data-i18n-placeholder="wiz_font_preview_ph" placeholder="Type a word to preview..." value="Aa" autocomplete="off" oninput="wizUpdateFontPreview()" />
+                                <input type="text" id="wizFontSearch" class="wiz-input wiz-input-sm" data-i18n-placeholder="wiz_font_search_ph" placeholder="Search fonts..." autocomplete="off" oninput="wizFilterFonts()" />
+                                <input type="hidden" id="toolsFontInput" />
+                                <div class="wiz-font-scroll" id="wizFontScroll">
+                                    <div class="wiz-font-track" id="wizFontTrack"></div>
+                                </div>
+                                <div class="wiz-font-scroll-ind-wrap">
+                                    <div class="wiz-font-scroll-ind">
+                                        <div class="wiz-font-scroll-ind-thumb" id="wizFontScrollThumb"></div>
+                                    </div>
+                                    <span class="wiz-font-scroll-hint-line"><i data-lucide="move-horizontal"></i> <span data-i18n="wiz_font_scroll_hint">scroll to explore all fonts</span></span>
+                                </div>
+                                <div class="wiz-font-preset-section">
+                                    <div class="wiz-head wiz-font-preset-head">
+                                        <h4 data-i18n="wiz_font_preset_title">Font Reference Presets</h4>
+                                        <p data-i18n="wiz_font_preset_desc">Upload typography references to guide lettering style, texture, spacing, and decorative font treatment.</p>
+                                    </div>
+                                    <div class="wiz-inspo-presets wiz-font-presets" id="wizFontPresets"></div>
+                                    <input type="file" accept="image/*" id="wizFontPresetFileInput" style="display:none" />
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Design Inspiration -->
+                            <div class="wiz-panel" data-wiz-panel="4">
+                                <div class="wiz-head">
+                                    <h3 data-i18n="wiz_step_inspiration">Design Inspiration</h3>
+                                    <p data-i18n="wiz_step_inspiration_desc">Pick a style preset or upload your own reference image to guide the design.</p>
+                                </div>
+                                <div class="wiz-inspo-section">
+                                    <div class="wiz-inspo-option">
+                                        <label class="wiz-inspo-option-label" for="toolsInspoMatchBg">
+                                            <input type="checkbox" id="toolsInspoMatchBg" />
+                                            <span data-i18n="wiz_inspo_match_bg">Keep background aligned with product style</span>
+                                        </label>
+                                    </div>
+                                    <div class="wiz-inspo-presets" id="wizInspoPresets"></div>
+                                    <input type="file" accept="image/*" id="wizInspoFileInput" style="display:none" />
+                                </div>
+                            </div>
+
+                            <!-- Inspiration Lightbox -->
+                            <div class="wiz-lightbox" id="wizLightbox" style="display:none">
+                                <div class="wiz-lightbox-backdrop" onclick="wizCloseLightbox()"></div>
+                                <div class="wiz-lightbox-body">
+                                    <img id="wizLightboxImg" src="" alt="" />
+                                    <button type="button" class="wiz-lightbox-close" onclick="wizCloseLightbox()"><i data-lucide="x"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Step 5: Wishes & Generate -->
+                            <div class="wiz-panel" data-wiz-panel="5">
+                                <div class="wiz-head">
+                                    <h3 data-i18n="wiz_step_generate">Final Touches</h3>
+                                    <p data-i18n="wiz_step_generate_desc">Any extra wishes? Review settings, then generate your card.</p>
+                                </div>
+                                <textarea id="toolsWishesInput" class="wiz-textarea" data-i18n-placeholder="wiz_wishes_placeholder" placeholder="Additional wishes for the design (optional)..." rows="3"></textarea>
+                                <details class="tools-settings-details">
+                                    <summary>
+                                        <i data-lucide="settings"></i>
+                                        <span data-i18n="wiz_gen_settings">Generation Settings</span>
+                                        <i data-lucide="chevron-down" class="tools-chevron"></i>
+                                    </summary>
+                                    <div class="settings-grid" style="margin-top:0.5rem;">
+                                        <div class="field">
+                                            <label data-i18n="wiz_lbl_model">Model</label>
+                                            <select id="toolsModel" onchange="wizUpdateToolsSettings()"></select>
+                                        </div>
+                                        <div class="field" id="toolsFieldResolution">
+                                            <label data-i18n="wiz_lbl_resolution">Resolution</label>
+                                            <select id="toolsResolution">
+                                                <option value="0.5K">0.5K</option>
+                                                <option value="1K">1K</option>
+                                                <option value="2K">2K</option>
+                                                <option value="4K" selected>4K</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsFieldAspect">
+                                            <label data-i18n="wiz_lbl_aspect">Aspect Ratio</label>
+                                            <select id="toolsAspectRatio">
+                                                <option value="3:4" selected>3:4 (WB Card)</option>
+                                                <option value="4:3">4:3</option>
+                                                <option value="1:1">1:1</option>
+                                                <option value="9:16">9:16</option>
+                                                <option value="16:9">16:9</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsFieldOutputFormat">
+                                            <label>Output</label>
+                                            <select id="toolsOutputFormat">
+                                                <option value="png" selected>PNG</option>
+                                                <option value="jpeg">JPEG</option>
+                                                <option value="webp">WebP</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsFieldWebSearch">
+                                            <label data-i18n="wiz_lbl_web_search">Web Search</label>
+                                            <select id="toolsWebSearch">
+                                                <option value="true">On</option>
+                                                <option value="false" selected>Off</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsFieldGoogleSearch">
+                                            <label data-i18n="wiz_lbl_google_search">Google Search</label>
+                                            <select id="toolsGoogleSearch">
+                                                <option value="true">On</option>
+                                                <option value="false" selected>Off</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsFieldSeed" style="display:none;">
+                                            <label data-i18n="wiz_lbl_seed">Seed</label>
+                                            <input type="number" id="toolsSeed" placeholder="Random" />
+                                        </div>
+                                    </div>
+                                    <div class="settings-grid" id="toolsGptImageOptions" style="display:none;margin-top:0.75rem;">
+                                        <div class="field">
+                                            <label>Size</label>
+                                            <select id="toolsGptImageSize"></select>
+                                        </div>
+                                        <div class="field">
+                                            <label>Quality</label>
+                                            <select id="toolsGptQuality">
+                                                <option value="high" selected>High</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="low">Low</option>
+                                            </select>
+                                        </div>
+                                        <div class="field">
+                                            <label>Output</label>
+                                            <select id="toolsGptOutputFormat">
+                                                <option value="png" selected>PNG</option>
+                                                <option value="jpeg">JPEG</option>
+                                                <option value="webp">WebP</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsGptBackgroundField" style="display:none;">
+                                            <label>Background</label>
+                                            <select id="toolsGptBackground">
+                                                <option value="auto">Auto</option>
+                                                <option value="opaque">Opaque</option>
+                                                <option value="transparent">Transparent</option>
+                                            </select>
+                                        </div>
+                                        <div class="field" id="toolsGptFidelityField" style="display:none;">
+                                            <label>Fidelity</label>
+                                            <select id="toolsGptFidelity">
+                                                <option value="high">High</option>
+                                                <option value="low">Low</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="settings-grid gpt-custom-size-fields" id="toolsGptCustomSizeFields" style="display:none;margin-top:0.5rem;">
+                                <div class="field gpt-size-slider-field">
+                                    <div class="gpt-size-slider-head">
+                                        <label for="toolsGptImageWidth">Width</label>
+                                        <input type="number" class="gpt-size-slider-value gpt-size-slider-value-input" id="toolsGptImageWidthValue" step="1" value="1200" aria-label="Width">
+                                    </div>
+                                    <input type="range" id="toolsGptImageWidth" min="1" max="4096" step="1" value="1200">
+                                </div>
+                                <div class="field gpt-size-slider-field">
+                                    <div class="gpt-size-slider-head">
+                                        <label for="toolsGptImageHeight">Height</label>
+                                        <input type="number" class="gpt-size-slider-value gpt-size-slider-value-input" id="toolsGptImageHeightValue" step="1" value="1600" aria-label="Height">
+                                    </div>
+                                    <input type="range" id="toolsGptImageHeight" min="1" max="4096" step="1" value="1600">
+                                </div>
+                            </div>
+                                    <div class="edit-max-hint" id="toolsGptCustomSizeHint" style="display:none;margin-top:0.35rem;"></div>
+                                </details>
+                            </div>
+                        </div>
+
+                        <!-- Wizard Navigation -->
+                        <div class="wiz-nav" id="wizNav">
+                            <button type="button" class="wiz-nav-btn wiz-nav-back" id="wizBackBtn" onclick="wizPrev()">
+                                <i data-lucide="arrow-left"></i><span data-i18n="wiz_btn_back">Back</span>
+                            </button>
+                            <span class="wiz-counter" id="wizCounter">1 / 6</span>
+                            <button type="button" class="wiz-nav-btn wiz-nav-next" id="wizNextBtn" onclick="wizNext()">
+                                <span>Next</span><i data-lucide="arrow-right"></i>
+                            </button>
+                        </div>
+                        </div>
+
+                        <div id="toolsEnhancerWorkspace" class="tools-workspace tools-workspace-utility" style="display:none;">
+                            <label class="group-label tools-setting-head"><span data-i18n="tools_label_source_image">Source Image</span><button type="button" class="tools-help-btn" data-help-key="sourceImage" aria-expanded="false">?</button></label>
+                            <div class="upload-zone tools-utility-drop" onclick="document.getElementById('toolsUtilityImageInput').click()" id="toolsUtilityImageDropzone">
+                                <div class="wiz-drop-icon"><i data-lucide="image-plus"></i></div>
+                                <span class="wiz-drop-text" id="toolsUtilityImageLabel">Click or drag a source image</span>
+                                <span class="wiz-drop-hint" id="toolsUtilityImageHint">PNG, JPG, WebP, HEIC</span>
+                                <input type="file" id="toolsUtilityImageInput" accept="image/*" hidden>
+                            </div>
+                            <div class="settings-grid" style="margin-top:0.6rem;">
+                                <div class="field" id="toolsEnhancerModelField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_model">Model</span><button type="button" class="tools-help-btn" data-help-key="model" aria-expanded="false">?</button></label>
+                                    <select id="toolsEnhancerModel">
+                                        <option value="Standard V2">Standard V2</option>
+                                        <option value="Low Resolution V2">Low Resolution V2</option>
+                                        <option value="CGI">CGI</option>
+                                        <option value="High Fidelity V2">High Fidelity V2</option>
+                                        <option value="Text Refine">Text Refine</option>
+                                        <option value="Recovery">Recovery</option>
+                                        <option value="Redefine">Redefine</option>
+                                        <option value="Recovery V2">Recovery V2</option>
+                                        <option value="Standard MAX">Standard MAX</option>
+                                        <option value="Wonder">Wonder</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="toolsEnhancerUpscaleField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_upscale_factor">Upscale Factor</span><button type="button" class="tools-help-btn" data-help-key="upscale_factor" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerUpscaleFactorRange" min="1" max="4" step="0.1" value="2">
+                                        <input type="number" id="toolsEnhancerUpscaleFactor" min="1" max="4" step="0.1" value="2">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerOutputFormatField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_output_format">Output Format</span><button type="button" class="tools-help-btn" data-help-key="output_format" aria-expanded="false">?</button></label>
+                                    <select id="toolsEnhancerOutputFormat">
+                                        <option value="jpeg">JPEG</option>
+                                        <option value="png">PNG</option>
+                                    </select>
+                                </div>
+                                <div class="tools-enhancer-model-note" id="toolsEnhancerModelNote"></div>
+                                <label class="tools-utility-toggle field full-width" for="toolsEnhancerCropToFill">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_enhancer_label_crop_to_fill">Crop To Fill</span><button type="button" class="tools-help-btn" data-help-key="crop_to_fill" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsEnhancerCropToFill">
+                                </label>
+                                <div class="field" id="toolsEnhancerSubjectField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_subject_detection">Subject Detection</span><button type="button" class="tools-help-btn" data-help-key="subject_detection" aria-expanded="false">?</button></label>
+                                    <select id="toolsEnhancerSubjectDetection">
+                                        <option value="All">All</option>
+                                        <option value="Foreground">Foreground</option>
+                                        <option value="Background">Background</option>
+                                    </select>
+                                </div>
+                                <label class="tools-utility-toggle field" id="toolsEnhancerFaceToggleField" for="toolsEnhancerFaceEnhancement">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_enhancer_label_face_enhancement">Face Enhancement</span><button type="button" class="tools-help-btn" data-help-key="face_enhancement" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsEnhancerFaceEnhancement" checked>
+                                </label>
+                                <div class="field" id="toolsEnhancerFaceStrengthField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_face_strength">Face Strength</span><button type="button" class="tools-help-btn" data-help-key="face_enhancement_strength" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerFaceStrengthRange" min="0" max="1" step="0.05" value="0.8">
+                                        <input type="number" id="toolsEnhancerFaceStrength" min="0" max="1" step="0.05" value="0.8">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerFaceCreativityField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_face_creativity">Face Creativity</span><button type="button" class="tools-help-btn" data-help-key="face_enhancement_creativity" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerFaceCreativityRange" min="0" max="1" step="0.05" value="0">
+                                        <input type="number" id="toolsEnhancerFaceCreativity" min="0" max="1" step="0.05" value="0">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerSharpenField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_sharpen">Sharpen</span><button type="button" class="tools-help-btn" data-help-key="sharpen" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerSharpenRange" min="0" max="1" step="0.05" value="0">
+                                        <input type="number" id="toolsEnhancerSharpen" min="0" max="1" step="0.05" value="0">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerDenoiseField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_denoise">Denoise</span><button type="button" class="tools-help-btn" data-help-key="denoise" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerDenoiseRange" min="0" max="1" step="0.05" value="0">
+                                        <input type="number" id="toolsEnhancerDenoise" min="0" max="1" step="0.05" value="0">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerFixCompressionField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_fix_compression">Fix Compression</span><button type="button" class="tools-help-btn" data-help-key="fix_compression" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerFixCompressionRange" min="0" max="1" step="0.05" value="0">
+                                        <input type="number" id="toolsEnhancerFixCompression" min="0" max="1" step="0.05" value="0">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerStrengthField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_strength">Enhancement Strength</span><button type="button" class="tools-help-btn" data-help-key="strength" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerStrengthRange" min="0.01" max="1" step="0.01" value="0.5">
+                                        <input type="number" id="toolsEnhancerStrength" min="0.01" max="1" step="0.01" value="0.5">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerDetailField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_detail">Detail Recovery</span><button type="button" class="tools-help-btn" data-help-key="detail" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerDetailRange" min="0" max="1" step="0.05" value="0.5">
+                                        <input type="number" id="toolsEnhancerDetail" min="0" max="1" step="0.05" value="0.5">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerCreativityField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_creativity">Creativity</span><button type="button" class="tools-help-btn" data-help-key="creativity" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerCreativityRange" min="1" max="6" step="1" value="3">
+                                        <input type="number" id="toolsEnhancerCreativity" min="1" max="6" step="1" value="3">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsEnhancerTextureField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_texture">Texture</span><button type="button" class="tools-help-btn" data-help-key="texture" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsEnhancerTextureRange" min="1" max="5" step="1" value="3">
+                                        <input type="number" id="toolsEnhancerTexture" min="1" max="5" step="1" value="3">
+                                    </div>
+                                </div>
+                                <label class="tools-utility-toggle field full-width" id="toolsEnhancerAutopromptField" for="toolsEnhancerAutoprompt">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_enhancer_label_autoprompt">Auto Prompt</span><button type="button" class="tools-help-btn" data-help-key="autoprompt" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsEnhancerAutoprompt">
+                                </label>
+                                <div class="field full-width" id="toolsEnhancerPromptField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_enhancer_label_prompt">Generative Prompt</span><button type="button" class="tools-help-btn" data-help-key="prompt" aria-expanded="false">?</button></label>
+                                    <textarea id="toolsEnhancerPrompt" class="wiz-textarea tools-utility-textarea" rows="3" data-i18n-placeholder="tools_enhancer_prompt_placeholder" placeholder="Guide Redefine with what details you want the upscale to invent or emphasize..."></textarea>
+                                </div>
+                            </div>
+                            <button type="button" class="generate-btn tools-utility-generate" onclick="handleGenerate()">
+                                <i data-lucide="sparkles"></i><span data-i18n="tools_enhancer_button">Enhance Image</span>
+                            </button>
+                        </div>
+
+                        <div id="toolsBgRemovalWorkspace" class="tools-workspace tools-workspace-utility" style="display:none;">
+                            <label class="group-label tools-setting-head"><span data-i18n="tools_label_source_image">Source Image</span><button type="button" class="tools-help-btn" data-help-key="sourceImage" aria-expanded="false">?</button></label>
+                            <div class="upload-zone tools-utility-drop" id="toolsBgRemovalDropzone" onclick="document.getElementById('toolsUtilityImageInput').click()">
+                                <div class="wiz-drop-icon"><i data-lucide="scissors-square-dashed-bottom"></i></div>
+                                <span class="wiz-drop-text" id="toolsBgRemovalImageLabel">Click or drag a source image</span>
+                                <span class="wiz-drop-hint" id="toolsBgRemovalImageHint">Drop once, then switch between utility tools freely</span>
+                            </div>
+                            <div class="settings-grid" style="margin-top:0.6rem;">
+                                <div class="field" id="toolsBgOutputFormatField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_cutout_label_output_format">Output Format</span><button type="button" class="tools-help-btn" data-help-key="cutout_output_format" aria-expanded="false">?</button></label>
+                                    <select id="toolsBgOutputFormat">
+                                        <option value="rgba">RGBA Cutout</option>
+                                        <option value="alpha">Alpha Mask</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="toolsBgSyncModeField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_cutout_label_inline_result">Inline Result</span><button type="button" class="tools-help-btn" data-help-key="cutout_sync_mode" aria-expanded="false">?</button></label>
+                                    <select id="toolsBgSyncMode">
+                                        <option value="false" selected>Stored URL</option>
+                                        <option value="true">Data URL</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="button" class="generate-btn tools-utility-generate tools-utility-generate-cutout" onclick="handleGenerate()">
+                                <i data-lucide="wand-sparkles"></i><span data-i18n="tools_cutout_button">Remove Background</span>
+                            </button>
+                        </div>
+
+                        <div id="toolsSamAudioWorkspace" class="tools-workspace tools-workspace-utility" style="display:none;">
+                            <label class="group-label tools-setting-head"><span data-i18n="tools_label_source_audio">Source Audio</span><button type="button" class="tools-help-btn" data-help-key="sourceAudio" aria-expanded="false">?</button></label>
+                            <div class="upload-zone tools-utility-drop tools-utility-drop-audio" id="toolsUtilityAudioDropzone" onclick="document.getElementById('toolsUtilityAudioInput').click()">
+                                <div class="wiz-drop-icon"><i data-lucide="audio-lines"></i></div>
+                                <span class="wiz-drop-text" id="toolsUtilityAudioLabel" data-i18n="select_audio">Select audio</span>
+                                <span class="wiz-drop-hint" id="toolsUtilityAudioHint" data-i18n="tools_sam_audio_idle_hint">WAV, MP3, FLAC</span>
+                                <input type="file" id="toolsUtilityAudioInput" accept="audio/*" hidden>
+                            </div>
+                            <div class="settings-grid" style="margin-top:0.6rem;">
+                                <div class="field" id="toolsSamAudioModelField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_model">Mode</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_model" aria-expanded="false">?</button></label>
+                                    <select id="toolsSamAudioModel">
+                                        <option value="fal-ai/sam-audio/separate" data-i18n="tools_sam_audio_model_separate">Prompt Separation</option>
+                                        <option value="fal-ai/sam-audio/span-separate" data-i18n="tools_sam_audio_model_span">Span Separation</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="toolsSamAudioOutputFormatField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_output_format">Output Format</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_output_format" aria-expanded="false">?</button></label>
+                                    <select id="toolsSamAudioOutputFormat">
+                                        <option value="wav" data-i18n="tools_sam_audio_opt_wav">WAV</option>
+                                        <option value="mp3" data-i18n="tools_sam_audio_opt_mp3">MP3</option>
+                                    </select>
+                                </div>
+                                <div class="tools-enhancer-model-note full-width" id="toolsSamAudioModelNote"></div>
+                                <div class="field full-width" id="toolsSamAudioPromptField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_prompt">Target Sound Prompt</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_prompt" aria-expanded="false">?</button></label>
+                                    <textarea id="toolsSamAudioPrompt" class="wiz-textarea tools-utility-textarea" rows="3" data-i18n-placeholder="tools_sam_audio_prompt_placeholder" placeholder="Describe the sound you want to isolate, for example: piano playing"></textarea>
+                                </div>
+                                <label class="tools-utility-toggle field full-width" id="toolsSamAudioPredictSpansField" for="toolsSamAudioPredictSpans">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_sam_audio_label_predict_spans">Predict Spans</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_predict_spans" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsSamAudioPredictSpans">
+                                </label>
+                                <div class="field full-width" id="toolsSamAudioSpansField" style="display:none;">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_spans">Target Spans</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_spans" aria-expanded="false">?</button></label>
+                                    <div id="toolsSamAudioSpansList" class="tools-sam-span-list"></div>
+                                    <button type="button" class="tools-sam-span-add" onclick="toolsAddSamAudioSpan()">
+                                        <i data-lucide="plus"></i>
+                                        <span data-i18n="tools_sam_audio_add_span">Add Span</span>
+                                    </button>
+                                </div>
+                                <div class="field" id="toolsSamAudioRerankingField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_reranking">Reranking Candidates</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_reranking_candidates" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsSamAudioRerankingCandidatesRange" min="1" max="7" step="1" value="1">
+                                        <input type="number" id="toolsSamAudioRerankingCandidates" min="1" max="7" step="1" value="1">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsSamAudioAccelerationField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_acceleration">Acceleration</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_acceleration" aria-expanded="false">?</button></label>
+                                    <select id="toolsSamAudioAcceleration">
+                                        <option value="fast" data-i18n="tools_sam_audio_opt_fast">Fast</option>
+                                        <option value="balanced" data-i18n="tools_sam_audio_opt_balanced">Balanced</option>
+                                        <option value="quality" data-i18n="tools_sam_audio_opt_quality">Quality</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="toolsSamAudioMaxChunkField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_max_chunk_duration">Max Chunk Duration</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_max_chunk_duration" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsSamAudioMaxChunkDurationRange" min="10" max="60" step="1" value="60">
+                                        <input type="number" id="toolsSamAudioMaxChunkDuration" min="10" max="60" step="1" value="60">
+                                    </div>
+                                </div>
+                                <div class="field" id="toolsSamAudioChunkOverlapField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_sam_audio_label_chunk_overlap">Chunk Overlap</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_chunk_overlap" aria-expanded="false">?</button></label>
+                                    <div class="tools-range-field">
+                                        <input type="range" id="toolsSamAudioChunkOverlapRange" min="0" max="30" step="0.5" value="5">
+                                        <input type="number" id="toolsSamAudioChunkOverlap" min="0" max="30" step="0.5" value="5">
+                                    </div>
+                                </div>
+                                <label class="tools-utility-toggle field full-width" id="toolsSamAudioSoundActivityField" for="toolsSamAudioUseSoundActivityRanking" style="display:none;">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_sam_audio_label_sound_activity_ranking">Sound Activity Ranking</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_use_sound_activity_ranking" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsSamAudioUseSoundActivityRanking">
+                                </label>
+                                <label class="tools-utility-toggle field full-width" id="toolsSamAudioTrimField" for="toolsSamAudioTrimToSpan" style="display:none;">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_sam_audio_label_trim_to_span">Trim To Span</span><button type="button" class="tools-help-btn" data-help-key="sam_audio_trim_to_span" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsSamAudioTrimToSpan">
+                                </label>
+                            </div>
+                            <button type="button" class="generate-btn tools-utility-generate tools-utility-generate-audio" onclick="handleGenerate()">
+                                <i data-lucide="audio-lines"></i><span data-i18n="tools_sam_audio_button">Separate Audio</span>
+                            </button>
+                        </div>
+
+                        <div id="toolsHeygenWorkspace" class="tools-workspace tools-workspace-utility" style="display:none;">
+                            <label class="group-label tools-setting-head"><span data-i18n="tools_label_source_video">Source Video</span><button type="button" class="tools-help-btn" data-help-key="sourceVideo" aria-expanded="false">?</button></label>
+                            <div class="upload-zone tools-utility-drop" id="toolsUtilityVideoDropzone" onclick="document.getElementById('toolsUtilityVideoInput').click()">
+                                <div class="wiz-drop-icon"><i data-lucide="video"></i></div>
+                                <span class="wiz-drop-text" id="toolsUtilityVideoLabel" data-i18n="upload_video">Upload video</span>
+                                <span class="wiz-drop-hint" id="toolsUtilityVideoHint" data-i18n="tools_heygen_idle_hint">MP4, MOV, WebM</span>
+                                <input type="file" id="toolsUtilityVideoInput" accept="video/*" hidden>
+                            </div>
+                            <div class="settings-grid" style="margin-top:0.6rem;">
+                                <div class="field full-width" id="toolsHeygenOutputLanguageField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_heygen_label_output_language">Target Language</span><button type="button" class="tools-help-btn" data-help-key="heygen_output_language" aria-expanded="false">?</button></label>
+                                    <select id="toolsHeygenOutputLanguage"></select>
+                                </div>
+                                <div class="tools-enhancer-model-note full-width" id="toolsHeygenModelNote"></div>
+                                <div class="field" id="toolsHeygenSpeakerNumField">
+                                    <label class="tools-setting-head"><span data-i18n="tools_heygen_label_speaker_num">Speaker Count</span><button type="button" class="tools-help-btn" data-help-key="heygen_speaker_num" aria-expanded="false">?</button></label>
+                                    <input type="number" id="toolsHeygenSpeakerNum" min="1" step="1" data-i18n-placeholder="tools_heygen_speaker_placeholder" placeholder="Auto-detect">
+                                </div>
+                                <label class="tools-utility-toggle field full-width" id="toolsHeygenTranslateAudioOnlyField" for="toolsHeygenTranslateAudioOnly">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_heygen_label_translate_audio_only">Translate Audio Only</span><button type="button" class="tools-help-btn" data-help-key="heygen_translate_audio_only" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsHeygenTranslateAudioOnly">
+                                </label>
+                                <label class="tools-utility-toggle field full-width" id="toolsHeygenDynamicDurationField" for="toolsHeygenEnableDynamicDuration">
+                                    <span class="tools-toggle-copy"><span data-i18n="tools_heygen_label_dynamic_duration">Dynamic Duration</span><button type="button" class="tools-help-btn" data-help-key="heygen_dynamic_duration" aria-expanded="false">?</button></span>
+                                    <input type="checkbox" id="toolsHeygenEnableDynamicDuration" checked>
+                                </label>
+                            </div>
+                            <button type="button" class="generate-btn tools-utility-generate tools-utility-generate-video" onclick="handleGenerate()">
+                                <i data-lucide="languages"></i><span data-i18n="tools_heygen_button">Translate Video</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Basic Options (Text-to-Image Mode) -->
+                    <div class="section-block" id="basicOptions">
+                        <div class="settings-grid">
+                            <div class="field" id="imageModelTextGroup">
+                                <label>Model</label>
+                                <select id="imageModelText"></select>
+                            </div>
+                            <div class="field" id="aspectRatioBaseGroup">
+                                <label>Ratio</label>
+                                <select id="aspectRatioBase">
+                                    <option value="16:9">16:9</option>
+                                    <option value="4:3">4:3</option>
+                                    <option value="3:2">3:2</option>
+                                    <option value="1:1">1:1</option>
+                                    <option value="2:3">2:3</option>
+                                    <option value="3:4">3:4</option>
+                                    <option value="9:16">9:16</option>
+                                </select>
+                            </div>
+                            <div class="field" id="textNumImagesGroup">
+                                <label>Count</label>
+                                <select id="textNumImages">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="4">4</option>
+                                </select>
+                            </div>
+                            <div class="field" id="textOutputFormatGroup">
+                                <label>Format</label>
+                                <select id="textOutputFormat">
+                                    <option value="jpeg">JPEG</option>
+                                    <option value="png">PNG</option>
+                                    <option value="webp">WebP</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="settings-grid" id="fluxAdvancedOptions">
+                            <div class="field">
+                                <label>Safety</label>
+                                <select id="textSafetyTolerance">
+                                    <option value="2">Standard</option>
+                                    <option value="1">Strict</option>
+                                    <option value="3">Relaxed</option>
+                                    <option value="4">Permissive</option>
+                                    <option value="5">Very Permissive</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Enhance</label>
+                                <select id="textEnhancePrompt">
+                                    <option value="false">Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Raw Mode</label>
+                                <select id="textRawMode">
+                                    <option value="false">Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Seed</label>
+                                <input type="number" id="textSeed" placeholder="Random">
+                            </div>
+                        </div>
+                        <!-- GPT Image specific options -->
+                        <div class="settings-grid" id="gptImageOptions" style="display:none;">
+                            <div class="field">
+                                <label>Size</label>
+                                <select id="gptImageSize">
+                                    <option value="landscape_4_3">Landscape 4:3</option>
+                                    <option value="landscape_16_9">Landscape 16:9</option>
+                                    <option value="square_hd">Square HD</option>
+                                    <option value="square">Square</option>
+                                    <option value="portrait_4_3">Portrait 4:3</option>
+                                    <option value="portrait_16_9">Portrait 16:9</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Quality</label>
+                                <select id="gptQuality">
+                                    <option value="high">High</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="low">Low</option>
+                                    </select>
+                                </div>
+                            <div class="field">
+                                <label>Sync Mode</label>
+                                <select id="gptSyncMode">
+                                    <option value="false" selected>Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                            <div class="field" id="gptBackgroundField">
+                                <label>Background</label>
+                                <select id="gptBackground">
+                                    <option value="auto">Auto</option>
+                                    <option value="opaque">Opaque</option>
+                                    <option value="transparent">Transparent</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="settings-grid gpt-custom-size-fields" id="gptTextCustomSizeFields" style="display:none;">
+                                <div class="field gpt-size-slider-field">
+                                    <div class="gpt-size-slider-head">
+                                        <label for="gptImageWidth">Width</label>
+                                        <input type="number" class="gpt-size-slider-value gpt-size-slider-value-input" id="gptImageWidthValue" step="1" value="1536" aria-label="Width">
+                                    </div>
+                                    <input type="range" id="gptImageWidth" min="1" max="4096" step="1" value="1536">
+                                </div>
+                                <div class="field gpt-size-slider-field">
+                                    <div class="gpt-size-slider-head">
+                                        <label for="gptImageHeight">Height</label>
+                                        <input type="number" class="gpt-size-slider-value gpt-size-slider-value-input" id="gptImageHeightValue" step="1" value="2048" aria-label="Height">
+                                    </div>
+                                    <input type="range" id="gptImageHeight" min="1" max="4096" step="1" value="2048">
+                                </div>
+                            </div>
+                        <div class="edit-max-hint" id="gptTextCustomSizeHint" style="display:none;"></div>
+                        <!-- Nano Banana Pro specific options -->
+                        <div class="settings-grid" id="nanoBananaOptions" style="display:none;">
+                            <div class="field">
+                                <label>Resolution</label>
+                                <select id="nanoResolution">
+                                    <option value="1K">1K</option>
+                                    <option value="2K">2K</option>
+                                    <option value="4K">4K</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Web Search</label>
+                                <select id="nanoWebSearch">
+                                    <option value="false">Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Nano Banana 2 specific options -->
+                        <div class="settings-grid" id="nanoBanana2Options" style="display:none;">
+                            <div class="field">
+                                <label>Resolution</label>
+                                <select id="nano2Resolution">
+                                    <option value="1K">1K</option>
+                                    <option value="2K">2K</option>
+                                    <option value="4K">4K</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Safety</label>
+                                <select id="nano2SafetyTolerance">
+                                    <option value="1">1 (Strictest)</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4" selected>4 (Default)</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6 (Least)</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Seed</label>
+                                <input type="number" id="nano2Seed" placeholder="Random">
+                            </div>
+                            <div class="field">
+                                <label>Web Search</label>
+                                <select id="nano2WebSearch">
+                                    <option value="false">Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Google Search</label>
+                                <select id="nano2GoogleSearch">
+                                    <option value="false">Off</option>
+                                    <option value="true">On</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="generate-btn" id="generateBtn" onclick="handleGenerate()">
+                        <i data-lucide="sparkles"></i>
+                        <span data-i18n="btn_generate">Generate</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Preview Panel (Right) -->
+            <section class="preview-panel">
+                <div class="preview-toolbar">
+                    <div id="generationsPanel" class="task-status"></div>
+                    <div class="preview-actions">
+                        <button id="downloadBtn" class="action-btn" style="display:none;" type="button">
+                            <i data-lucide="download"></i>
+                        </button>
+                        <button id="editImageBtn" class="action-btn action-btn--edit" style="display:none;" type="button" onclick="editCurrentImage()" data-i18n-title="btn_edit_image" title="Edit Image">
+                            <i data-lucide="wand-2"></i>
+                            <span class="action-btn-label" data-i18n="btn_edit_image">Edit</span>
+                        </button>
+                        <button id="useAsAssetBtn" class="action-btn" style="display:none;" type="button" title="Use as Asset" onclick="useCurrentPreviewAsAsset(this)">
+                            <i data-lucide="package-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="preview-canvas" id="previewArea">
+                    <div id="placeholder" class="placeholder">
+                        <i data-lucide="image"></i>
+                        <p data-i18n="preview_placeholder">Your creation will appear here</p>
+                    </div>
+                    <div id="loader" class="loader" style="display: none;">
+                        <div class="spinner"></div>
+                        <p data-i18n="preview_creating">Creating...</p>
+                        <span id="timer">0.0s</span>
+                    </div>
+                    <img id="resultImage">
+                    <video id="resultVideo" controls loop></video>
+                    <div id="resultAudioPane" class="result-audio-pane"></div>
+                    <model-viewer id="resultModel" camera-controls auto-rotate rotation-per-second="20deg" shadow-intensity="1" exposure="1.2" environment-image="neutral" tone-mapping="commerce" loading="eager" alt="3D model"></model-viewer>
+                </div>
+            </section>
+        </main>
+
+        <!-- History Drawer (Slide-out) -->
+        <aside class="history-drawer" id="historyDrawer">
+            <div class="drawer-header">
+                <span data-i18n="history_title">History</span>
+                <div class="drawer-header-actions">
+                    <button class="expand-btn" onclick="openFullHistory()" title="Full Gallery">
+                        <i data-lucide="maximize-2"></i>
+                    </button>
+                    <button class="close-btn" onclick="toggleHistory()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="history-toolbar-shell">
+                <div class="history-toolbar">
+                    <label class="history-search" for="historySearchInput">
+                        <span class="history-search-icon" aria-hidden="true">
+                            <i data-lucide="search"></i>
+                        </span>
+                        <input id="historySearchInput" type="text" inputmode="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="history_search_placeholder" placeholder="Search prompts">
+                        <button id="historySearchClear" class="history-search-clear" type="button" data-i18n-title="history_search_clear" title="Clear search" hidden>
+                            <i data-lucide="x"></i>
+                        </button>
+                    </label>
+                    <div id="historyFilterBar" class="history-filter-bar">
+                        <button type="button" class="history-filter-chip active" data-history-filter="all" data-i18n="history_filter_all" aria-pressed="true">All</button>
+                        <button type="button" class="history-filter-chip" data-history-filter="image" data-i18n="history_filter_images" aria-pressed="false">Images</button>
+                        <button type="button" class="history-filter-chip" data-history-filter="video" data-i18n="history_filter_videos" aria-pressed="false">Videos</button>
+                        <button type="button" class="history-filter-chip" data-history-filter="audio" data-i18n="history_filter_audio" aria-pressed="false">Audio</button>
+                        <button type="button" class="history-filter-chip" data-history-filter="3d" data-i18n="history_filter_3d" aria-pressed="false">3D</button>
+                    </div>
+                </div>
+                <div class="history-toolbar-meta">
+                    <div id="historyResultsMeta" class="history-results-meta"></div>
+                    <button id="historyClearAllBtn" class="history-clear-all-btn" type="button" onclick="clearAllHistory(event)" data-i18n="history_clear_all" data-i18n-title="history_clear_all_title" title="Clear all history">Clear all</button>
+                </div>
+            </div>
+            <div class="history-scroll-region">
+                <div id="historyList" class="history-list"></div>
+                <div id="emptyHistory" class="empty-state history-empty-state">
+                    <i data-lucide="inbox"></i>
+                    <p id="emptyHistoryText" data-i18n="history_empty">No creations yet</p>
+                </div>
+            </div>
+        </aside>
+        <div class="drawer-overlay" id="drawerOverlay" onclick="toggleHistory()"></div>
+
+        <!-- Model News Drawer -->
+        <aside class="news-drawer" id="newsDrawer">
+            <div class="drawer-header">
+                <span data-i18n="news_title">News</span>
+                <button class="close-btn" onclick="toggleNews()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="news-subtitle" data-i18n="news_last_3_days">New models added in the last 3 days</div>
+            <div id="newsList" class="news-list"></div>
+            <div id="emptyNews" class="empty-state" style="display:none;">
+                <i data-lucide="newspaper"></i>
+                <p data-i18n="news_empty">No new models in the last 3 days</p>
+            </div>
+        </aside>
+        <div class="drawer-overlay" id="newsOverlay" onclick="toggleNews()"></div>
+
+        <!-- Fullscreen History Gallery -->
+        <div class="fhg" id="fullHistoryGallery" style="display:none;">
+            <div class="fhg-backdrop"></div>
+            <div class="fhg-container">
+                <header class="fhg-header">
+                    <button class="fhg-back" onclick="closeFullHistory()">
+                        <i data-lucide="arrow-left"></i>
+                        <span data-i18n="history_title">History</span>
+                    </button>
+                    <div class="fhg-toolbar">
+                        <label class="fhg-search" for="fhgSearchInput">
+                            <i data-lucide="search"></i>
+                            <input id="fhgSearchInput" type="text" inputmode="search" autocomplete="off" spellcheck="false" data-i18n-placeholder="history_search_placeholder" placeholder="Search prompts">
+                        </label>
+                        <div class="fhg-filters" id="fhgFilterBar">
+                            <button type="button" class="fhg-filter active" data-fhg-filter="all" data-i18n="history_filter_all">All</button>
+                            <button type="button" class="fhg-filter" data-fhg-filter="image" data-i18n="history_filter_images">Images</button>
+                            <button type="button" class="fhg-filter" data-fhg-filter="video" data-i18n="history_filter_videos">Videos</button>
+                            <button type="button" class="fhg-filter" data-fhg-filter="audio" data-i18n="history_filter_audio">Audio</button>
+                            <button type="button" class="fhg-filter" data-fhg-filter="3d" data-i18n="history_filter_3d">3D</button>
+                        </div>
+                    </div>
+                    <div class="fhg-toolbar-meta">
+                        <div class="fhg-meta" id="fhgMeta"></div>
+                        <button id="fhgClearAllBtn" class="fhg-clear-btn" type="button" onclick="clearAllHistory(event)" data-i18n="history_clear_all" data-i18n-title="history_clear_all_title" title="Clear all history">Clear all</button>
+                    </div>
+                </header>
+                <div class="fhg-scroll" id="fhgScroll">
+                    <div class="fhg-grid" id="fhgGrid"></div>
+                    <div class="fhg-empty" id="fhgEmpty" style="display:none;">
+                        <i data-lucide="inbox"></i>
+                        <p data-i18n="history_empty">No creations yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusToast" class="toast"></div>
+
+    <div id="mediaModal" class="modal" onclick="onMediaModalBackdropClick(event)">
+        <div class="modal-content" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <span class="modal-title" id="mediaModalTitle"></span>
+                <div class="modal-actions">
+                    <button id="mediaModalReuse" class="icon-btn" style="display:none;" type="button" title="Reuse Prompt & Settings" onclick="reuseCurrentPreview()">
+                        <i data-lucide="repeat-2"></i>
+                    </button>
+                    <button id="mediaModalDownload" class="icon-btn" style="display:none;" type="button">
+                        <i data-lucide="download"></i>
+                    </button>
+                    <button id="mediaModalUseAsset" class="icon-btn" style="display:none;" type="button" title="Use as Asset" onclick="useCurrentPreviewAsAsset(this)">
+                        <i data-lucide="package-plus"></i>
+                    </button>
+                    <button class="icon-btn" type="button" onclick="closeMediaModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body" id="mediaModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Session check spinner (no text, centered only) -->
+    <div id="sessionCheckOverlay" class="session-check-overlay">
+        <div class="session-check-spinner">
+            <div class="session-check-ring"></div>
+            <div class="session-check-ring session-check-ring--inner"></div>
+            <div class="session-check-core"></div>
+        </div>
+    </div>
+
+    <section id="profilePage" class="profile-screen" style="display:none;">
+        <div class="profile-screen-shell">
+            <header class="profile-screen-header">
+                <button class="profile-screen-back" type="button" onclick="closeProfilePage()">
+                    <i data-lucide="arrow-left"></i>
+                    <span id="profileBackLabel">Back</span>
+                </button>
+                <div class="profile-screen-headings">
+                    <span class="profile-screen-kicker" id="profileKicker">Account</span>
+                    <h2 class="profile-screen-title" id="profilePageTitle">Profile</h2>
+                </div>
+            </header>
+            <div class="profile-screen-grid">
+                <section class="profile-card profile-card--hero">
+                    <div class="profile-identity">
+                        <div class="profile-avatar" id="profileAvatar">N</div>
+                        <div class="profile-identity-copy">
+                            <h3 id="profileName">Guest</h3>
+                            <p id="profileEmail">guest@example.com</p>
+                        </div>
+                    </div>
+                    <div class="profile-status-row">
+                        <span class="profile-status-chip"><i data-lucide="calendar"></i> <span id="profileCreatedAt">Created just now</span></span>
+                        <span class="profile-status-chip"><i data-lucide="hard-drive"></i> <span id="profileMigrationState">No local migration recorded</span></span>
+                    </div>
+                </section>
+                <section class="profile-card profile-card--stats">
+                    <div class="profile-stat">
+                        <div class="profile-stat-icon"><i data-lucide="image"></i></div>
+                        <strong class="profile-stat-value" id="profileHistoryCount">0</strong>
+                        <span class="profile-stat-label" id="profileHistoryLabel">History items</span>
+                    </div>
+                    <div class="profile-stat">
+                        <div class="profile-stat-icon"><i data-lucide="type"></i></div>
+                        <strong class="profile-stat-value" id="profilePresetCount">0</strong>
+                        <span class="profile-stat-label" id="profilePresetLabel">Text presets</span>
+                    </div>
+                    <div class="profile-stat">
+                        <div class="profile-stat-icon"><i data-lucide="sparkles"></i></div>
+                        <strong class="profile-stat-value" id="profileInspirationCount">0</strong>
+                        <span class="profile-stat-label" id="profileInspirationLabel">Inspiration presets</span>
+                    </div>
+                </section>
+                <section class="profile-card profile-card--placeholder">
+                    <div class="profile-card-placeholder-icon"><i data-lucide="coins"></i></div>
+                    <span class="profile-card-label" id="profileFutureLabelCredits">Credits</span>
+                    <p id="profileFutureBodyCredits">Reserved for future credit balance and usage controls.</p>
+                </section>
+                <section class="profile-card profile-card--placeholder">
+                    <div class="profile-card-placeholder-icon"><i data-lucide="crown"></i></div>
+                    <span class="profile-card-label" id="profileFutureLabelSubscription">Subscription</span>
+                    <p id="profileFutureBodySubscription">Reserved for future subscription and billing controls.</p>
+                </section>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Professional Image Editor Modal -->
+    <div id="sketchModal" class="sk-modal" style="display:none;">
+        <div class="sk-editor">
+            <!-- Top bar -->
+            <div class="sk-topbar">
+                <div class="sk-topbar-left">
+                    <span class="sk-title"><i data-lucide="image"></i> Image Editor</span>
+                </div>
+                <div class="sk-topbar-center">
+                    <!-- Context properties bar -->
+                    <div class="sk-props" id="skPropsBar">
+                        <label class="sk-color-wrap" title="Color">
+                            <input type="color" id="sketchColor" value="#ff0000">
+                        </label>
+                        <label class="sk-prop-group" title="Size">
+                            <span class="sk-prop-label">Size</span>
+                            <input type="range" id="sketchSize" min="1" max="60" value="4" class="sk-range">
+                            <span class="sk-prop-val" id="skSizeVal">4</span>
+                        </label>
+                        <label class="sk-prop-group" title="Opacity">
+                            <span class="sk-prop-label">Opacity</span>
+                            <input type="range" id="sketchOpacity" min="10" max="100" value="100" class="sk-range">
+                            <span class="sk-prop-val" id="skOpacityVal">100%</span>
+                        </label>
+                    </div>
+                    <!-- Text properties (shown when text tool active) -->
+                    <div class="sk-props sk-text-props" id="skTextPropsBar" style="display:none;">
+                        <select id="skTextFont" class="sk-select">
+                            <option value="Arial">Arial</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Trebuchet MS">Trebuchet MS</option>
+                            <option value="Impact">Impact</option>
+                            <option value="Comic Sans MS">Comic Sans MS</option>
+                            <option value="Palatino">Palatino</option>
+                            <option value="Garamond">Garamond</option>
+                            <option value="Bookman">Bookman</option>
+                            <option value="Tahoma">Tahoma</option>
+                            <option value="Lucida Console">Lucida Console</option>
+                            <option value="Arial Black">Arial Black</option>
+                            <option value="Century Gothic">Century Gothic</option>
+                            <option value="Franklin Gothic">Franklin Gothic</option>
+                            <option value="Copperplate">Copperplate</option>
+                            <option value="Papyrus">Papyrus</option>
+                            <option value="Brush Script MT">Brush Script MT</option>
+                            <option value="Segoe UI">Segoe UI</option>
+                            <option value="Futura">Futura</option>
+                            <option value="Rockwell">Rockwell</option>
+                            <option value="Didot">Didot</option>
+                            <option value="Optima">Optima</option>
+                            <option value="Cambria">Cambria</option>
+                            <option value="Candara">Candara</option>
+                            <option value="Constantia">Constantia</option>
+                            <option value="Corbel">Corbel</option>
+                        </select>
+                        <input type="number" id="skTextSize" value="36" min="8" max="200" class="sk-num-input" title="Font size">
+                        <label class="sk-color-wrap" title="Text Color">
+                            <input type="color" id="skTextColor" value="#ffffff">
+                        </label>
+                        <button type="button" class="sk-tbtn" id="skTextBold" title="Bold" onclick="skToggleBold()"><b>B</b></button>
+                        <button type="button" class="sk-tbtn" id="skTextItalic" title="Italic" onclick="skToggleItalic()"><i>I</i></button>
+                    </div>
+                </div>
+                <div class="sk-topbar-right">
+                    <button type="button" class="sk-icon-btn" onclick="sketchUndo()" title="Undo"><i data-lucide="undo-2"></i></button>
+                    <button type="button" class="sk-icon-btn" onclick="sketchRedo()" title="Redo"><i data-lucide="redo-2"></i></button>
+                    <span class="sk-sep"></span>
+                    <button type="button" class="sk-icon-btn sk-layers-toggle" onclick="skToggleLayersPanel()" title="Layers"><i data-lucide="layers"></i></button>
+                    <button type="button" class="sk-icon-btn sk-close-btn" onclick="closeSketchEditor()" title="Close"><i data-lucide="x"></i></button>
+                </div>
+            </div>
+            <!-- Main area -->
+            <div class="sk-main">
+                <!-- Left toolbar -->
+                <div class="sk-toolbar" id="skToolbar">
+                    <button class="sk-tool active" data-sktool="move" title="Move"><i data-lucide="move"></i></button>
+                    <button class="sk-tool" data-sktool="pen" title="Pen"><i data-lucide="pen-tool"></i></button>
+                    <button class="sk-tool" data-sktool="eraser" title="Eraser"><i data-lucide="eraser"></i></button>
+                    <span class="sk-tool-sep"></span>
+                    <button class="sk-tool" data-sktool="line" title="Line"><i data-lucide="minus"></i></button>
+                    <button class="sk-tool" data-sktool="rect" title="Rectangle"><i data-lucide="square"></i></button>
+                    <button class="sk-tool" data-sktool="circle" title="Circle"><i data-lucide="circle"></i></button>
+                    <button class="sk-tool" data-sktool="arrow" title="Arrow"><i data-lucide="arrow-up-right"></i></button>
+                    <span class="sk-tool-sep"></span>
+                    <button class="sk-tool" data-sktool="text" title="Text"><i data-lucide="type"></i></button>
+                    <button class="sk-tool" data-sktool="select" title="Select Area"><i data-lucide="square-dashed-bottom"></i></button>
+                    <button class="sk-tool" data-sktool="eyedropper" title="Eyedropper"><i data-lucide="pipette"></i></button>
+                    <span class="sk-tool-sep"></span>
+                    <button class="sk-tool" onclick="sketchClear()" title="Reset"><i data-lucide="rotate-ccw"></i></button>
+                </div>
+                <!-- Canvas area -->
+                <div class="sk-canvas-area" id="skCanvasArea">
+                    <div class="sk-canvas-scroller" id="skCanvasScroller">
+                        <div class="sk-canvas-wrap" id="skCanvasWrap">
+                            <canvas id="sketchCanvas"></canvas>
+                            <div class="sk-text-overlays" id="skTextOverlays"></div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Right panel -->
+                <div class="sk-right-panel" id="skRightPanel">
+                    <!-- Layers -->
+                    <div class="sk-panel-section">
+                        <div class="sk-panel-header">
+                            <span>Layers</span>
+                            <button type="button" class="sk-icon-btn-sm" onclick="skAddLayer()" title="Add Layer"><i data-lucide="plus"></i></button>
+                        </div>
+                        <div class="sk-panel-body" id="skLayersList">
+                        </div>
+                    </div>
+                    <!-- Text overlays -->
+                    <div class="sk-panel-section">
+                        <div class="sk-panel-header">
+                            <span>Text on Image</span>
+                            <button type="button" class="sk-icon-btn-sm" onclick="skAddTextOverlay()" title="Add text"><i data-lucide="plus"></i></button>
+                        </div>
+                        <div class="sk-panel-body sk-text-list" id="skTextList">
+                            <div class="sk-text-empty">Click + or use Text tool to add text</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Bottom actions -->
+            <div class="sk-bottom">
+                <div class="sk-bottom-left">
+                    <span class="sk-zoom-label" id="skZoomLabel">100%</span>
+                    <button type="button" class="sk-icon-btn-sm" onclick="skZoom(-1)" title="Zoom out"><i data-lucide="zoom-out"></i></button>
+                    <button type="button" class="sk-icon-btn-sm" onclick="skZoom(0)" title="Fit"><i data-lucide="maximize-2"></i></button>
+                    <button type="button" class="sk-icon-btn-sm" onclick="skZoom(1)" title="Zoom in"><i data-lucide="zoom-in"></i></button>
+                </div>
+                <div class="sk-bottom-right">
+                    <button type="button" class="sk-btn-secondary" onclick="closeSketchEditor()">Cancel</button>
+                    <button type="button" class="sk-btn-primary" onclick="saveSketch()"><i data-lucide="save"></i> Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Preset Manager Panel -->
+    <div id="presetManagerBackdrop" class="pm-backdrop" onclick="closePresetManager()"></div>
+    <div id="presetManagerPanel" class="pm-panel" role="dialog" aria-modal="true">
+        <div class="pm-header">
+            <span class="pm-title" data-i18n="wiz_preset_title">Title Presets</span>
+            <button type="button" class="pm-close" onclick="closePresetManager()" aria-label="Close">&#x2715;</button>
+        </div>
+        <div class="pm-body" id="presetManagerBody">
+        </div>
+        <div class="pm-footer">
+            <div class="pm-add-row">
+                <input type="text" id="pmAddInput" class="pm-add-input" data-i18n-placeholder="wiz_preset_add_ph" placeholder="New preset text..." maxlength="60" autocomplete="off" onkeydown="if(event.key==='Enter')pmAddPreset()" />
+                <button type="button" class="pm-add-btn" onclick="pmAddPreset()" data-i18n="wiz_preset_add_btn">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./translations.js"></script>
+    <script src="./i18n.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script type="module" src="./account.js"></script>
+
+</body>
+
+</html>

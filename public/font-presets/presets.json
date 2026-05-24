@@ -1,0 +1,47 @@
+[
+  {
+    "id": "font_hand_drawn_calligraphy",
+    "name": "Hand Drawn Calligraphy",
+    "thumb": "/font-presets/hand-drawn-lettering-beauty-elegant-modern-handwritten-calligraphy_1217-2373.avif"
+  },
+  {
+    "id": "font_images_1",
+    "name": "Images 1",
+    "thumb": "/font-presets/images%20%281%29.png"
+  },
+  {
+    "id": "font_images_2",
+    "name": "Images 2",
+    "thumb": "/font-presets/images%20%282%29.jpg"
+  },
+  {
+    "id": "font_images",
+    "name": "Images",
+    "thumb": "/font-presets/images.png"
+  },
+  {
+    "id": "font_istock_1257195600",
+    "name": "Istock 1257195600",
+    "thumb": "/font-presets/istockphoto-1257195600-612x612.jpg"
+  },
+  {
+    "id": "font_istock_1399008778",
+    "name": "Istock 1399008778",
+    "thumb": "/font-presets/istockphoto-1399008778-612x612.jpg"
+  },
+  {
+    "id": "font_lettering_isolated",
+    "name": "Lettering Isolated",
+    "thumb": "/font-presets/lettering-font-isolated-on-white-260nw-1357615052.webp"
+  },
+  {
+    "id": "font_quality_3d_text",
+    "name": "Quality 3D Text",
+    "thumb": "/font-presets/quality-word-white-3d-text-style_53876-124818.avif"
+  },
+  {
+    "id": "font_vector_year_handwriting",
+    "name": "Vector Year Handwriting",
+    "thumb": "/font-presets/vector-year-black-handwriting-font-white-background-isolated-typography-text-calendar-design-flyer-banner-poster-vector-year-402039970.webp"
+  }
+]

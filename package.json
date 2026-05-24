@@ -1,0 +1,25 @@
+{
+  "name": "nano-banana-pro",
+  "version": "1.0.0",
+  "description": "AI-Powered Image & Video Generation using fal.ai",
+  "main": "index.js",
+  "scripts": {
+    "start": "npx serve .",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "ai",
+    "image-generation",
+    "video-generation",
+    "fal-ai"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fal-ai/client": "^1.9.5",
+    "@fal-ai/server-proxy": "^1.2.1",
+    "busboy": "^1.6.0",
+    "form-data": "^4.0.5",
+    "node-fetch": "^3.3.2"
+  }
+}
