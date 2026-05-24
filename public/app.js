@@ -368,6 +368,7 @@ let uploadedToolsUtilityVideo = null;
 const managedUploadRemoteState = Object.create(null);
 let toolsCharsCount = 0;
 let currentToolsTool = 'card-studio';
+let uploadedKieEditImages = [];
 let currentKling3Tab = 'v3-text-to-video';
 let currentKling3Family = 'v3';
 let currentLtx23Family = 'text-to-video';
@@ -742,6 +743,7 @@ const GPT_IMAGE_2_MAX_EDGE = 3840;
 const DEFAULT_IMAGE_TEXT_MODEL = 'nano-banana-pro';
 const DEFAULT_IMAGE_EDIT_MODEL = 'nano-banana-pro/edit';
 const DEFAULT_TOOLS_MODEL = 'nano-banana-2';
+const DEFAULT_KIE_EDIT_MODEL = 'nano-banana-2';
 const DEFAULT_3D_MODEL = 'fal-ai/meshy/v6-preview/image-to-3d';
 
 const IMAGE_MODELS_TEXT = [
@@ -772,8 +774,27 @@ const IMAGE_MODELS_EDIT = [
 ];
 const TOOLS_MODELS = [
   { id: 'nano-banana-2', label: 'Nano Banana 2 (KIE)' },
+  { id: 'nano-banana-pro', label: 'Nano Banana Pro (KIE)' },
 ];
 TOOLS_TOOL_MODEL_IDS['card-studio'] = DEFAULT_TOOLS_MODEL;
+
+const KIE_EDIT_MODELS = [
+  { id: 'nano-banana-2', label: 'Nano Banana 2' },
+  { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
+];
+
+const KIE_PRICING = {
+  'nano-banana-2': {
+    '1K': { credits: 8, usd: 0.04, effectiveUsd: 0.036 },
+    '2K': { credits: 12, usd: 0.06, effectiveUsd: 0.054 },
+    '4K': { credits: 18, usd: 0.09, effectiveUsd: 0.081 },
+  },
+  'nano-banana-pro': {
+    '1K': { credits: 18, usd: 0.09, effectiveUsd: 0.082 },
+    '2K': { credits: 18, usd: 0.09, effectiveUsd: 0.082 },
+    '4K': { credits: 24, usd: 0.12, effectiveUsd: 0.11 },
+  },
+};
 
 const THREE_D_MODELS = [
   { id: 'fal-ai/meshy/v6-preview/image-to-3d', label: 'Meshy V6 Preview (Image to 3D)', kind: 'image-to-3d', provider: 'fal' },
@@ -2549,6 +2570,8 @@ function useHistoryAsAsset(index, anchorEl) {
 window.useHistoryAsAsset = useHistoryAsAsset;
 
 async function editCurrentImage() {
+  useCurrentPreviewForKieEdit();
+  return;
   if (!currentPreview || (currentPreview.type && currentPreview.type !== 'image')) {
     showToast(window.I18N ? I18N.t('toast_no_preview_use') : 'No image to edit', 'error');
     return;
@@ -6023,10 +6046,10 @@ function animateSection(el) {
 
 function switchMode(mode) {
   if (mode === 'kling3') mode = 'video';
-  if (mode !== 'tools') mode = 'tools';
+  if (mode !== 'tools' && mode !== 'kie-edit') mode = 'tools';
   currentMode = mode;
 
-  const modeIds = ['mode-text', 'mode-image', 'mode-video', 'mode-kling3', 'mode-3d', 'mode-tools'];
+  const modeIds = ['mode-text', 'mode-image', 'mode-video', 'mode-kling3', 'mode-3d', 'mode-tools', 'mode-kie-edit'];
   for (const id of modeIds) {
     const el = qs(id);
     if (el) el.classList.remove('active');
@@ -6035,7 +6058,7 @@ function switchMode(mode) {
   if (activeBtn) activeBtn.classList.add('active');
 
   // Hide all sections first
-  const sections = ['imageUploadGroup', 'videoUploadGroup', 'kling3UploadGroup', 'threeDUploadGroup', 'basicOptions', 'toolsSection'];
+  const sections = ['imageUploadGroup', 'videoUploadGroup', 'kling3UploadGroup', 'threeDUploadGroup', 'basicOptions', 'toolsSection', 'kieEditSection'];
   sections.forEach(id => {
     const el = qs(id);
     if (el) {
@@ -6095,10 +6118,19 @@ function switchMode(mode) {
   } else {
     exitWizFullscreen();
   }
+  if (mode === 'kie-edit') {
+    const el = qs('kieEditSection');
+    if (el) {
+      el.style.display = 'block';
+      animateSection(el);
+    }
+    updateKieEditSourcePreview();
+    updateKiePriceNotes();
+  }
 
   // Hide/show prompt group & generate btn (tools mode has its own)
   const promptGroup = qs('promptGroup');
-  if (promptGroup) promptGroup.style.display = mode === 'tools' ? 'none' : '';
+  if (promptGroup) promptGroup.style.display = (mode === 'tools' || mode === 'kie-edit') ? 'none' : '';
   const genBtn = qs('generateBtn');
   if (genBtn) genBtn.style.display = mode === 'tools' ? 'none' : '';
   // Show @1/@2 reference hint only in image-edit mode
@@ -6125,7 +6157,7 @@ let _wizAnimating = false;
 let _toolsInitialized = false;
 
 // Max images per model
-const WIZ_MAX_IMAGES = { ...EDIT_MAX_IMAGES, 'nano-banana-2': 14 };
+const WIZ_MAX_IMAGES = { ...EDIT_MAX_IMAGES, 'nano-banana-2': 14, 'nano-banana-pro': 14 };
 function wizMaxImages() {
   const m = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
   return WIZ_MAX_IMAGES[m] || WIZ_MAX_IMAGES[DEFAULT_TOOLS_MODEL] || 4;
@@ -7485,8 +7517,109 @@ function wizUpdateToolsSettings() {
   // Update upload hint
   const hint = document.querySelector('.wiz-drop-hint');
   if (hint) hint.textContent = `PNG, JPG ${window.I18N ? I18N.t('wiz_upload_hint_up_to') : 'up to'} ${max} ${window.I18N ? I18N.t('wiz_upload_hint_images') : 'images'}`;
+  updateKiePriceNotes();
 }
 window.wizUpdateToolsSettings = wizUpdateToolsSettings;
+
+function formatUsd(value) {
+  return `$${Number(value || 0).toFixed(3).replace(/0$/, '').replace(/0$/, '')}`;
+}
+
+function getKieRequestPrice(modelId, resolution) {
+  const modelPricing = KIE_PRICING[String(modelId || DEFAULT_TOOLS_MODEL)] || KIE_PRICING[DEFAULT_TOOLS_MODEL];
+  return modelPricing[String(resolution || '1K')] || modelPricing['1K'];
+}
+
+function renderKiePriceNote(el, modelId, resolution) {
+  if (!el) return;
+  const price = getKieRequestPrice(modelId, resolution);
+  const modelLabel = (KIE_EDIT_MODELS.concat(TOOLS_MODELS).find((m) => m.id === modelId) || {}).label || modelId;
+  el.innerHTML = `Цена запроса: <strong>${price.credits} credits (${formatUsd(price.usd)})</strong> · ${escapeHtml(modelLabel)} · ${escapeHtml(resolution || '1K')}<br><span>С high-tier top-ups: примерно ${formatUsd(price.effectiveUsd)}.</span>`;
+}
+
+function updateKiePriceNotes() {
+  renderKiePriceNote(
+    qs('kieEditPriceNote'),
+    qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL,
+    qs('kieEditResolution') ? qs('kieEditResolution').value : '1K'
+  );
+  renderKiePriceNote(
+    qs('toolsPriceNote'),
+    qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL,
+    qs('toolsResolution') ? qs('toolsResolution').value : '1K'
+  );
+  renderKiePriceNote(
+    qs('toolsPriceNoteSummary'),
+    qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL,
+    qs('toolsResolution') ? qs('toolsResolution').value : '1K'
+  );
+}
+
+function setKieEditSource(item) {
+  uploadedKieEditImages = item ? [item] : [];
+  updateKieEditSourcePreview();
+  saveAppState();
+}
+
+function updateKieEditSourcePreview() {
+  const grid = qs('kieEditPreviewGrid');
+  const label = qs('kieEditSourceLabel');
+  if (!grid) return;
+  grid.innerHTML = '';
+  const item = uploadedKieEditImages[0];
+  if (!item) {
+    if (label) label.textContent = 'Выберите фото или нажмите "Редактировать" у результата';
+    return;
+  }
+  const src = typeof item === 'string'
+    ? item
+    : (item && item.url ? item.url : URL.createObjectURL(item));
+  const tile = document.createElement('div');
+  tile.className = 'upload-preview-item';
+  tile.innerHTML = `<img src="${escapeHtml(src)}" alt=""><button type="button" onclick="clearKieEditSource()"><i data-lucide="x"></i></button>`;
+  grid.appendChild(tile);
+  if (label) label.textContent = 'Фото готово для редактирования';
+  if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+}
+
+function clearKieEditSource() {
+  uploadedKieEditImages = [];
+  updateKieEditSourcePreview();
+  saveAppState();
+}
+window.clearKieEditSource = clearKieEditSource;
+
+function useCurrentPreviewForKieEdit() {
+  if (!currentPreview || (currentPreview.type && currentPreview.type !== 'image') || !currentPreview.url) {
+    showToast(window.I18N ? I18N.t('toast_no_preview_use') : 'No image to edit', 'error');
+    return;
+  }
+  setKieEditSource(currentPreview.url);
+  switchMode('kie-edit');
+  showToast('Фото отправлено в редактирование');
+}
+window.useCurrentPreviewForKieEdit = useCurrentPreviewForKieEdit;
+
+function initKieEditControls() {
+  const input = qs('kieEditImageInput');
+  if (input && !input.dataset.kieEditBound) {
+    input.dataset.kieEditBound = 'true';
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0] ? input.files[0] : null;
+      if (file) setKieEditSource(file);
+      input.value = '';
+    });
+  }
+  ['kieEditModel', 'kieEditResolution', 'kieEditAspectRatio', 'kieEditOutputFormat', 'toolsModel', 'toolsResolution'].forEach((id) => {
+    const el = qs(id);
+    if (el && !el.dataset.priceBound) {
+      el.dataset.priceBound = 'true';
+      el.addEventListener('change', updateKiePriceNotes);
+    }
+  });
+  updateKieEditSourcePreview();
+  updateKiePriceNotes();
+}
 
 // --- Auto-resize helper for growing textareas ---
 function wizAutoResize(el) {
@@ -8997,6 +9130,27 @@ async function submitToolsRequest(task) {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw await createResponseError(res, 'Image generation failed');
+  return await res.json();
+}
+
+async function submitKieEditRequest(task) {
+  const modelId = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
+  const imageUrls = await resolveUploadItemKieInputs(uploadedKieEditImages, 'kie-edit-source', task, 1);
+  if (!imageUrls.length) throw new Error('Select an image to edit');
+  const body = {
+    model_id: modelId,
+    prompt: task.prompt,
+    image_urls: imageUrls,
+    resolution: qs('kieEditResolution') ? qs('kieEditResolution').value : '1K',
+    aspect_ratio: qs('kieEditAspectRatio') ? qs('kieEditAspectRatio').value : 'auto',
+    output_format: qs('kieEditOutputFormat') ? qs('kieEditOutputFormat').value : 'png',
+  };
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await createResponseError(res, 'Image editing failed');
   return await res.json();
 }
 
@@ -12304,6 +12458,7 @@ async function startTask(taskId) {
   try {
     let res;
     if (t.mode === 'tools') res = await submitToolsRequest(t);
+    else if (t.mode === 'kie-edit') res = await submitKieEditRequest(t);
     else if (t.mode === 'video') res = await submitVideoRequest(t);
     else if (t.mode === '3d') res = await submit3dRequest(t);
     else if (t.mode === 'kling3') res = await submitKling3Request(t);
@@ -12366,7 +12521,9 @@ function captureGenerationContext() {
     kling3Family: currentKling3Family,
     kling3Tab: currentKling3Tab,
     toolsTool: currentToolsTool,
-    prompt: qs('promptInput') ? qs('promptInput').value : '',
+    prompt: currentMode === 'kie-edit'
+      ? (qs('kieEditPrompt') ? qs('kieEditPrompt').value : '')
+      : (qs('promptInput') ? qs('promptInput').value : ''),
     selects: {},
     inputs: {},
   };
@@ -12423,7 +12580,8 @@ async function handleGenerate() {
       prompt = `Background Removal · ${format}`;
     }
   } else {
-    const _rawPrompt = qs('promptInput') ? normalizePromptRefsForCurrentContext(qs('promptInput').value.trim()) : '';
+    const sourcePromptEl = currentMode === 'kie-edit' ? qs('kieEditPrompt') : qs('promptInput');
+    const _rawPrompt = sourcePromptEl ? normalizePromptRefsForCurrentContext(sourcePromptEl.value.trim()) : '';
     prompt = _rawPrompt ? `/${_rawPrompt}` : '';
   }
   const currentVideoModelMeta = currentMode === 'video' ? getSelectedVideoModel() : null;
@@ -12518,7 +12676,18 @@ async function handleGenerate() {
     }
   }
 
-  if (currentMode !== '3d' && currentMode !== 'video' && currentMode !== 'kling3' && currentMode !== 'tools' && !prompt) {
+  if (currentMode === 'kie-edit') {
+    if (!uploadedKieEditImages.length) {
+      showToast('Выберите фото для редактирования', 'error');
+      return;
+    }
+    if (!prompt) {
+      showToast(window.I18N ? I18N.t('toast_enter_prompt') : 'Please enter a prompt', 'error');
+      return;
+    }
+  }
+
+  if (currentMode !== '3d' && currentMode !== 'video' && currentMode !== 'kling3' && currentMode !== 'tools' && currentMode !== 'kie-edit' && !prompt) {
     showToast(window.I18N ? I18N.t('toast_enter_prompt') : 'Please enter a prompt', 'error');
     return;
   }
@@ -12590,6 +12759,7 @@ async function handleGenerate() {
 
   let model_id;
   if (currentMode === 'tools') model_id = getActiveToolsModelId();
+  else if (currentMode === 'kie-edit') model_id = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
   else if (currentMode === 'text') model_id = qs('imageModelText') ? qs('imageModelText').value : DEFAULT_IMAGE_TEXT_MODEL;
   else if (currentMode === 'image') model_id = qs('imageModelEdit') ? qs('imageModelEdit').value : DEFAULT_IMAGE_EDIT_MODEL;
   else if (currentMode === 'video') model_id = qs('videoModel') ? qs('videoModel').value : '';
@@ -12640,6 +12810,12 @@ function initModels() {
     if (!toolsSel.value) toolsSel.value = DEFAULT_TOOLS_MODEL;
   }
 
+  const kieEditSel = qs('kieEditModel');
+  if (kieEditSel) {
+    setSelectOptions(kieEditSel, KIE_EDIT_MODELS);
+    if (!kieEditSel.value) kieEditSel.value = DEFAULT_KIE_EDIT_MODEL;
+  }
+
   const threeDSel = qs('threeDModel');
   if (threeDSel) {
     setSelectOptions(threeDSel, THREE_D_MODELS);
@@ -12647,6 +12823,7 @@ function initModels() {
   }
 
   if (_toolsInitialized) wizUpdateToolsSettings();
+  initKieEditControls();
   refreshModelNews();
 }
 function initInputs() {
@@ -12847,6 +13024,7 @@ document.addEventListener('click', (e) => {
   if (btn.id === 'mode-image') switchMode('image');
   if (btn.id === 'mode-video') switchMode('video');
   if (btn.id === 'mode-3d') switchMode('3d');
+  if (btn.id === 'mode-kie-edit') switchMode('kie-edit');
 });
 
 // Generate thumbnails for history items that don't have them (video + image)
@@ -13079,6 +13257,7 @@ const PERSISTED_SELECTS = [
   'kling3MotionOrientation', 'kling3KeepOriginalSound',
   'toolsHeygenOutputLanguage',
   'aspectRatioBase', 'toolsOutputFormat',
+  'kieEditModel', 'kieEditResolution', 'kieEditAspectRatio', 'kieEditOutputFormat',
   'toolsModel', 'toolsResolution', 'toolsAspectRatio', 'toolsWebSearch', 'toolsGoogleSearch',
   'toolsGptImageSize', 'toolsGptQuality', 'toolsGptOutputFormat', 'toolsGptBackground', 'toolsGptFidelity',
   'toolsEnhancerModel', 'toolsEnhancerOutputFormat', 'toolsEnhancerSubjectDetection', 'toolsEnhancerCreativity', 'toolsEnhancerTexture',
@@ -13100,6 +13279,7 @@ const PERSISTED_INPUTS = [
   'toolsEnhancerStrength', 'toolsEnhancerDetail', 'toolsEnhancerPrompt',
   'toolsSamAudioPrompt', 'toolsSamAudioRerankingCandidates', 'toolsSamAudioMaxChunkDuration', 'toolsSamAudioChunkOverlap',
   'toolsHeygenSpeakerNum',
+  'kieEditPrompt',
 ];
 
 const PERSISTED_CHECKBOXES = [
@@ -14090,23 +14270,4 @@ window.scheduleVideoRestoreWatchdog = scheduleVideoRestoreWatchdog;
 hookNewsLocaleUpdates();
 if (window.I18N) window.I18N.init();
 refreshModelNews(true);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

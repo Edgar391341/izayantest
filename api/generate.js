@@ -138,8 +138,17 @@ async function normalizeKieImageInputs(imageUrls) {
     return out;
 }
 
-async function submitKieNanoBanana2(body) {
+function getKieImageModelId(modelId) {
+    const id = String(modelId || '').trim();
+    if (id === 'nano-banana-2' || id === 'nano-banana-2/edit' || id === 'kie/nano-banana-2') return 'nano-banana-2';
+    if (id === 'nano-banana-pro' || id === 'nano-banana-pro/edit' || id === 'kie/nano-banana-pro') return 'nano-banana-pro';
+    return null;
+}
+
+async function submitKieImageTask(body) {
     if (!KIE_API_KEY) throw new Error('KIE_API_KEY environment variable not configured');
+    const kieModel = getKieImageModelId(body.model_id);
+    if (!kieModel) throw new Error(`Unknown KIE model_id: ${body.model_id || ''}`);
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (!prompt) throw new Error('Prompt is required');
 
@@ -152,16 +161,19 @@ async function submitKieNanoBanana2(body) {
         output_format: body.output_format || 'png',
     };
 
+    const requestBody = {
+        model: kieModel,
+        input,
+    };
+    if (body.callBackUrl) requestBody.callBackUrl = String(body.callBackUrl);
+
     const response = await fetch(KIE_CREATE_TASK_URL, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${KIE_API_KEY}`,
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            model: 'nano-banana-2',
-            input,
-        }),
+        body: JSON.stringify(requestBody),
     });
     const data = await response.json().catch(() => null);
     if (!response.ok || !data || data.code >= 400) {
@@ -176,7 +188,7 @@ async function submitKieNanoBanana2(body) {
     const statusUrl = `${KIE_STATUS_URL}?taskId=${encodeURIComponent(taskId)}`;
     return {
         provider: 'kie',
-        model_id: 'nano-banana-2',
+        model_id: kieModel,
         request_id: taskId,
         status_url: statusUrl,
         response_url: statusUrl,
@@ -267,7 +279,7 @@ module.exports = async function handler(req, res) {
     }
 
     const requestedModelId = (req.body || {}).model_id || 'flux-pro-v1.1-ultra';
-    const isKieModel = requestedModelId === 'nano-banana-2' || requestedModelId === 'nano-banana-2/edit' || requestedModelId === 'kie/nano-banana-2';
+    const isKieModel = !!getKieImageModelId(requestedModelId);
     if (!isKieModel && !FAL_API_KEY && (!getGoogleImageModelId(requestedModelId) || !hasGoogleApiKey())) {
         return res.status(500).json({ error: 'FAL_KEY environment variable not configured' });
     }
@@ -275,8 +287,8 @@ module.exports = async function handler(req, res) {
     try {
         const body = req.body || {};
         const model_id = body.model_id || 'flux-pro-v1.1-ultra';
-        if (model_id === 'nano-banana-2' || model_id === 'nano-banana-2/edit' || model_id === 'kie/nano-banana-2') {
-            const result = await submitKieNanoBanana2(body);
+        if (getKieImageModelId(model_id)) {
+            const result = await submitKieImageTask(body);
             return res.status(200).json(result);
         }
 

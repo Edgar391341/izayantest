@@ -1630,6 +1630,48 @@ select option { background: var(--bg-elevated); color: var(--text); }
 }
 .action-btn-label { white-space: nowrap; }
 
+.kie-edit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+}
+
+.kie-edit-head h3 {
+    margin: 0.15rem 0 0;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.tools-suite-kicker {
+    display: block;
+    color: var(--accent-bright);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.kie-edit-prompt-group {
+    margin-top: 0.9rem;
+}
+
+.kie-edit-settings {
+    margin-top: 0.75rem;
+}
+
+.kie-price-note {
+    margin-top: 0.75rem;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid rgba(212,145,90,0.22);
+    background: rgba(212,145,90,0.08);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
 @media (max-width: 480px) {
     .action-btn--edit { padding: 0 0.6rem; }
 }

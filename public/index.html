@@ -47,6 +47,9 @@
                 <button class="tab active" onclick="switchMode('tools')" id="mode-tools">
                     <i data-lucide="wrench"></i><span data-i18n="tab_tools">Tools</span>
                 </button>
+                <button class="tab" onclick="switchMode('kie-edit')" id="mode-kie-edit">
+                    <i data-lucide="wand-2"></i><span>Редактировать</span>
+                </button>
             </nav>
             <button class="history-toggle" onclick="toggleHistory()" id="historyToggle">
                 <i data-lucide="clock"></i>
@@ -1048,6 +1051,7 @@
                                             <input type="number" id="toolsSeed" placeholder="Random" />
                                         </div>
                                     </div>
+                                    <div class="kie-price-note" id="toolsPriceNote"></div>
                                     <div class="settings-grid" id="toolsGptImageOptions" style="display:none;margin-top:0.75rem;">
                                         <div class="field">
                                             <label>Size</label>
@@ -1103,6 +1107,7 @@
                             </div>
                                     <div class="edit-max-hint" id="toolsGptCustomSizeHint" style="display:none;margin-top:0.35rem;"></div>
                                 </details>
+                                <div class="kie-price-note" id="toolsPriceNoteSummary"></div>
                             </div>
                         </div>
 
@@ -1573,6 +1578,67 @@
                                 </select>
                             </div>
                         </div>
+                    </div>
+
+                    <div id="kieEditSection" class="section-block" style="display: none;">
+                        <div class="kie-edit-head">
+                            <div>
+                                <span class="tools-suite-kicker">Nano Banana</span>
+                                <h3>Редактирование изображения</h3>
+                            </div>
+                            <button type="button" class="action-btn action-btn--edit" onclick="useCurrentPreviewForKieEdit()" title="Use current result">
+                                <i data-lucide="image-plus"></i>
+                                <span class="action-btn-label">Взять результат</span>
+                            </button>
+                        </div>
+
+                        <label class="group-label">Исходное фото</label>
+                        <div class="upload-zone" onclick="document.getElementById('kieEditImageInput').click()" id="kieEditDropzone">
+                            <i data-lucide="image-plus"></i>
+                            <span id="kieEditSourceLabel">Выберите фото или нажмите "Редактировать" у результата</span>
+                            <input type="file" id="kieEditImageInput" accept="image/*" hidden>
+                        </div>
+                        <div id="kieEditPreviewGrid" class="upload-preview-grid"></div>
+
+                        <div class="control-group kie-edit-prompt-group">
+                            <label class="group-label" for="kieEditPrompt">Промпт редактирования</label>
+                            <textarea id="kieEditPrompt" class="wiz-textarea" rows="4" placeholder="Например: сохрани товар, замени фон на премиальный светлый интерьер, добавь аккуратные тени и рекламную композицию..."></textarea>
+                        </div>
+
+                        <div class="settings-grid kie-edit-settings">
+                            <div class="field">
+                                <label>Model</label>
+                                <select id="kieEditModel"></select>
+                            </div>
+                            <div class="field">
+                                <label>Resolution</label>
+                                <select id="kieEditResolution">
+                                    <option value="1K" selected>1K</option>
+                                    <option value="2K">2K</option>
+                                    <option value="4K">4K</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Aspect Ratio</label>
+                                <select id="kieEditAspectRatio">
+                                    <option value="auto" selected>Auto</option>
+                                    <option value="3:4">3:4</option>
+                                    <option value="4:3">4:3</option>
+                                    <option value="1:1">1:1</option>
+                                    <option value="9:16">9:16</option>
+                                    <option value="16:9">16:9</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Output</label>
+                                <select id="kieEditOutputFormat">
+                                    <option value="png" selected>PNG</option>
+                                    <option value="jpeg">JPEG</option>
+                                    <option value="webp">WebP</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="kie-price-note" id="kieEditPriceNote"></div>
                     </div>
 
                     <button class="generate-btn" id="generateBtn" onclick="handleGenerate()">
