@@ -66,7 +66,7 @@ function initSitePasswordGate() {
 initSitePasswordGate();
 
 // State
-let currentMode = 'tools';
+let currentMode = 'kie-create';
 let currentVideoTab = 'text-to-video';
 let activeAccountStorageScope = null;
 let hasExplicitAccountStorageScope = false;
@@ -4378,6 +4378,7 @@ function renderVideoOptionsUI() {
     host.dataset.persistHooked = 'true';
     const onOptionChange = () => {
       try { captureVideoOptionsToMemory(); } catch (_) {}
+      updateAllPricingUi();
       if (typeof saveAppState === 'function') saveAppState();
     };
     host.addEventListener('change', onOptionChange);
@@ -4405,6 +4406,7 @@ function renderVideoOptionsUI() {
   localizeVideoOptionFields(host);
   try { applyVideoOptionsFromMemory(); } catch (_) {}
   queueApplyPendingPersistedControls();
+  setTimeout(updateAllPricingUi, 0);
 }
 
 function collectVideoOptionsFromUI() {
@@ -4573,6 +4575,7 @@ function ensureVideoControls() {
       updateVideoUiVisibility();
       renderVideoOptionsUI();
       try { refreshVideo3TierUi(); } catch (_) {}
+      updateAllPricingUi();
     })
     .catch((e) => {
       showToast(e && e.message ? e.message : String(e), 'error');
@@ -4613,6 +4616,7 @@ function ensureVideoControls() {
       renderVideoOptionsUI();
       updateSeedance2ReferenceUi();
       try { refreshVideo3TierUi(); } catch (_) {}
+      updateAllPricingUi();
       if (typeof saveAppState === 'function') saveAppState();
     });
   }
@@ -4689,6 +4693,7 @@ function updateVideoUiVisibility() {
     syncKling3StateFromVideoModelId(modelMeta.id, { skipSave: true });
     updateKling3UiVisibility();
   }
+  updateAllPricingUi();
 }
 
 function update3dUiVisibility() {
@@ -5104,9 +5109,11 @@ function selectVideoModelById(id) {
     if (sel) sel.value = id;
     updateVideoUiVisibility();
     renderVideoOptionsUI();
+    updateAllPricingUi();
     if (typeof saveAppState === 'function') saveAppState();
   }
   refreshVideo3TierUi();
+  updateAllPricingUi();
 }
 window.selectVideoModelById = selectVideoModelById;
 
@@ -5414,6 +5421,22 @@ function initKling3Controls() {
       updateKling3UiVisibility();
     });
   }
+
+  ['kling3Duration', 'kling3AspectRatio', 'kling3ShotType', 'kling3KieMode', 'kling3CfgScale', 'kling3GenerateAudio', 'kling3KeepAudio', 'kling3VoiceIds', 'kling3NegativePrompt', 'kling3VideoUrlInput'].forEach((id) => {
+    const el = qs(id);
+    if (!el || el.dataset.kling3Bound) return;
+    el.dataset.kling3Bound = 'true';
+    el.addEventListener('change', () => {
+      updateKling3UiVisibility();
+      updateAllPricingUi();
+      if (typeof saveAppState === 'function') saveAppState();
+    });
+    el.addEventListener('input', () => {
+      updateAllPricingUi();
+      if (typeof saveAppState === 'function') saveAppState();
+    });
+  });
+
   ['kling3StartImageInput', 'kling3EndImageInput', 'kling3VideoInput', 'kling3RefImagesInput'].forEach((inputId) => {
     const inputEl = qs(inputId);
     if (inputEl) setupDropZone(inputEl.closest('.upload-zone'), inputEl);
@@ -5701,6 +5724,9 @@ function collectKling3Options() {
 
     const genAudio = qs('kling3GenerateAudio') ? qs('kling3GenerateAudio').value : 'true';
     options.generate_audio = genAudio === 'true';
+
+    const kieMode = qs('kling3KieMode') ? qs('kling3KieMode').value : '';
+    if (kieMode) options.mode = kieMode;
 
     const keepAudio = qs('kling3KeepAudio') ? qs('kling3KeepAudio').value : 'true';
     options.keep_audio = keepAudio === 'true';
@@ -6135,7 +6161,7 @@ function animateSection(el) {
 
 function switchMode(mode) {
   if (mode === 'kling3') mode = 'video';
-  if (mode !== 'tools' && mode !== 'kie-edit' && mode !== 'kie-create') mode = 'tools';
+  if (mode !== 'tools' && mode !== 'kie-edit' && mode !== 'kie-create' && mode !== 'video') mode = 'kie-create';
   currentMode = mode;
 
   const modeIds = ['mode-text', 'mode-image', 'mode-video', 'mode-kling3', 'mode-3d', 'mode-tools', 'mode-kie-edit', 'mode-kie-create'];
@@ -6147,7 +6173,7 @@ function switchMode(mode) {
   if (activeBtn) activeBtn.classList.add('active');
 
   // Hide all sections first
-  const sections = ['imageUploadGroup', 'videoUploadGroup', 'kling3UploadGroup', 'threeDUploadGroup', 'basicOptions', 'toolsSection', 'kieEditSection', 'kieCreateSection'];
+  const sections = ['imageUploadGroup', 'videoUploadGroup', 'seedance2UploadGroup', 'ltx23UploadGroup', 'kling3UploadGroup', 'threeDUploadGroup', 'basicOptions', 'toolsSection', 'kieEditSection', 'kieCreateSection'];
   sections.forEach(id => {
     const el = qs(id);
     if (el) {
@@ -6224,6 +6250,7 @@ function switchMode(mode) {
     }
     updateKieCreatePriceNote();
   }
+  updateGeneratePriceBadge();
 
   // Hide/show prompt group & generate btn (tools mode has its own)
   const promptGroup = qs('promptGroup');
@@ -7630,6 +7657,142 @@ function getKieRequestPrice(modelId, resolution) {
   return modelPricing[String(resolution || '1K')] || modelPricing['1K'];
 }
 
+function getImagePriceForCurrentMode() {
+  if (currentMode === 'kie-create') {
+    return getKieRequestPrice(
+      qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2',
+      qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K'
+    );
+  }
+  if (currentMode === 'kie-edit') {
+    return getKieRequestPrice(
+      qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL,
+      qs('kieEditResolution') ? qs('kieEditResolution').value : '1K'
+    );
+  }
+  if (currentMode === 'tools') {
+    return getKieRequestPrice(
+      qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL,
+      qs('toolsResolution') ? qs('toolsResolution').value : '1K'
+    );
+  }
+  return null;
+}
+
+function getVideoOptionValueByKeys(keys, fallback) {
+  const list = Array.isArray(keys) ? keys : [keys];
+  for (const key of list) {
+    const el = document.querySelector(`[data-opt-key="${key}"]`);
+    if (el && el.value !== undefined && String(el.value).trim() !== '') return el.value;
+  }
+  return fallback;
+}
+
+function getBoolishVideoValue(keys, fallback) {
+  const v = getVideoOptionValueByKeys(keys, fallback ? 'true' : 'false');
+  return v === true || String(v).toLowerCase() === 'true' || String(v).toLowerCase() === 'on';
+}
+
+function getSelectedVideoPricing() {
+  if (currentMode !== 'video') return null;
+  const meta = getSelectedVideoModel();
+  const id = meta && meta.id ? String(meta.id) : '';
+  if (!id) return null;
+
+  const seconds = Math.max(1, Number(getVideoOptionValueByKeys(
+    ['duration_grok', 'duration_seedance2', 'duration_kling', 'duration_kling3', 'duration_kling3_optional'],
+    qs('kling3Duration') ? qs('kling3Duration').value : 5
+  )) || 5);
+  const resolution = String(getVideoOptionValueByKeys(
+    ['resolution_grok', 'resolution_seedance2_fast', 'resolution_seedance2_pro'],
+    id.includes('grok') ? '720p' : id.includes('seedance-2.0-fast') ? '720p' : '1080p'
+  ) || '').toLowerCase();
+  const hasVideoInput = !!(
+    id.includes('ref2v')
+    || id.includes('v2v')
+    || getManagedUploadPrimarySource(MANAGED_UPLOADS.videoInput, uploadedVideoFile)
+    || getManagedUploadRemoteItems(MANAGED_UPLOADS.kling3VideoInput)[0]
+    || uploadedKling3Video
+  );
+  const audioOn = getBoolishVideoValue(['generate_audio_on', 'generate_audio'], qs('kling3GenerateAudio') ? qs('kling3GenerateAudio').value === 'true' : true);
+  const make = (label, credits, usd, note, resLabel) => ({
+    modelLabel: label,
+    seconds,
+    resolution: resLabel || resolution.toUpperCase(),
+    audioOn,
+    credits,
+    usd,
+    effectiveUsd: usd * 0.9,
+    note,
+  });
+
+  if (id === 'grok-imagine-t2v' || id === 'grok-imagine-i2v') {
+    const rate = resolution === '480p' ? 1.6 : 3;
+    return make('Grok Imagine', rate * seconds, rate * seconds * 0.005, '480p: 1.6 credits/s; 720p: 3 credits/s', resolution.toUpperCase());
+  }
+  if (id.includes('seedance-2.0-fast')) {
+    const rates = resolution === '480p'
+      ? (hasVideoInput ? { credits: 9, usd: 0.045 } : { credits: 15.5, usd: 0.0775 })
+      : (hasVideoInput ? { credits: 20, usd: 0.1 } : { credits: 33, usd: 0.165 });
+    return make('Seedance 2 Fast', rates.credits * seconds, rates.usd * seconds, hasVideoInput ? 'with video input pricing' : 'no video input pricing', resolution.toUpperCase());
+  }
+  if (id.includes('seedance-2.0-pro')) {
+    const rates = resolution === '480p'
+      ? (hasVideoInput ? { credits: 11.5, usd: 0.0575 } : { credits: 19, usd: 0.095 })
+      : resolution === '720p'
+      ? (hasVideoInput ? { credits: 25, usd: 0.125 } : { credits: 41, usd: 0.205 })
+      : (hasVideoInput ? { credits: 62, usd: 0.31 } : { credits: 102, usd: 0.51 });
+    return make('Seedance 2 Pro', rates.credits * seconds, rates.usd * seconds, hasVideoInput ? 'with video input pricing' : 'no video input pricing', resolution.toUpperCase());
+  }
+  if (id === 'kling-v2.6-pro-t2v' || id === 'kling-v2.6-pro-i2v') {
+    const dur = seconds <= 5 ? 5 : 10;
+    const credits = audioOn ? (dur === 5 ? 110 : 220) : (dur === 5 ? 55 : 110);
+    const usd = audioOn ? (dur === 5 ? 0.55 : 1.10) : (dur === 5 ? 0.28 : 0.55);
+    return make('Kling 2.6', credits, usd, audioOn ? 'HD with audio flat rate' : 'HD no-audio flat rate', 'HD');
+  }
+  if (id.includes('kling-v3') || id.includes('kling-o3')) {
+    const mode = qs('kling3KieMode') ? qs('kling3KieMode').value : 'pro';
+    const rate = mode === '4K'
+      ? { credits: 67, usd: 0.335, label: '4K' }
+      : mode === 'std'
+      ? (audioOn ? { credits: 20, usd: 0.1, label: 'Standard' } : { credits: 14, usd: 0.07, label: 'Standard' })
+      : (audioOn ? { credits: 27, usd: 0.135, label: 'Pro' } : { credits: 18, usd: 0.09, label: 'Pro' });
+    return make('Kling 3.0', rate.credits * seconds, rate.usd * seconds, audioOn ? `${rate.label} with audio` : `${rate.label} no audio`, rate.label);
+  }
+  return null;
+}
+
+function renderVideoPriceCard() {
+  const card = qs('videoPriceCard');
+  if (!card) return;
+  const price = getSelectedVideoPricing();
+  card.hidden = !price;
+  if (!price) return;
+  if (qs('videoPriceHeadline')) qs('videoPriceHeadline').textContent = `${Number(price.credits.toFixed(2))} credits (${formatUsd(price.usd)})`;
+  if (qs('videoPriceResolution')) qs('videoPriceResolution').textContent = price.resolution;
+  if (qs('videoPriceDuration')) qs('videoPriceDuration').textContent = `${price.seconds}s`;
+  if (qs('videoPriceAudio')) qs('videoPriceAudio').textContent = price.audioOn ? 'Audio on' : 'No audio';
+  if (qs('videoPriceNote')) qs('videoPriceNote').textContent = `${price.modelLabel} · ${price.note}. High-tier top-ups: about ${formatUsd(price.effectiveUsd)} effective.`;
+}
+
+function updateGeneratePriceBadge() {
+  const badge = qs('generatePriceBadge');
+  if (!badge) return;
+  const price = currentMode === 'video' ? getSelectedVideoPricing() : getImagePriceForCurrentMode();
+  if (!price || !Number.isFinite(Number(price.credits))) {
+    badge.hidden = true;
+    badge.textContent = '';
+    return;
+  }
+  badge.hidden = false;
+  badge.textContent = `${Number(Number(price.credits).toFixed(2))} cr`;
+}
+
+function updateAllPricingUi() {
+  renderVideoPriceCard();
+  updateGeneratePriceBadge();
+}
+
 function getCustomAspectRatio(selectId, inputId, fallback = 'auto') {
   const select = qs(selectId);
   const value = select ? String(select.value || '').trim() : '';
@@ -7694,6 +7857,7 @@ function updateKiePriceNotes() {
     qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL,
     qs('toolsResolution') ? qs('toolsResolution').value : '1K'
   );
+  updateGeneratePriceBadge();
 }
 
 function updateKieEditModelFields() {
@@ -7712,6 +7876,7 @@ function updateKieCreatePriceNote() {
   const isGptModel = modelId === KIE_GPT_IMAGE_2_TEXT_MODEL_ID;
   const resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
   renderKiePriceNote(qs('kieCreatePriceNote'), modelId, resolution);
+  updateGeneratePriceBadge();
   const qualityField = qs('kieCreateFieldQuality');
   if (isGptModel) {
     const resField = qs('kieCreateFieldResolution');
@@ -13273,6 +13438,8 @@ document.addEventListener('click', (e) => {
   if (btn.id === 'mode-video') switchMode('video');
   if (btn.id === 'mode-3d') switchMode('3d');
   if (btn.id === 'mode-kie-edit') switchMode('kie-edit');
+  if (btn.id === 'mode-kie-create') switchMode('kie-create');
+  if (btn.id === 'mode-tools') switchMode('tools');
 });
 
 // Generate thumbnails for history items that don't have them (video + image)
@@ -13501,7 +13668,7 @@ const PERSISTED_SELECTS = [
   'threeDRetextureOriginalUv', 'threeDRetextureEnablePbr', 'threeDRetextureEnableSafety',
   'videoModel',
   'kling3Duration', 'kling3AspectRatio', 'kling3ShotType', 'kling3CfgScale',
-  'kling3GenerateAudio', 'kling3KeepAudio',
+  'kling3KieMode', 'kling3GenerateAudio', 'kling3KeepAudio',
   'kling3MotionOrientation', 'kling3KeepOriginalSound',
   'toolsHeygenOutputLanguage',
   'aspectRatioBase', 'toolsOutputFormat',
@@ -14397,7 +14564,7 @@ if (savedMode) {
     update3dUiVisibility();
   }
 } else {
-  switchMode('tools');
+  switchMode('kie-create');
 }
 
 // Restore preview & gallery from persisted state

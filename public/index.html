@@ -63,14 +63,17 @@
                 </div>
             </div>
             <nav class="mode-tabs">
-                <button class="tab active" onclick="switchMode('tools')" id="mode-tools">
-                    <i data-lucide="wrench"></i><span data-i18n="tab_tools">Tools</span>
+                <button class="tab active" onclick="switchMode('kie-create')" id="mode-kie-create">
+                    <i data-lucide="plus-circle"></i><span>Создать</span>
                 </button>
                 <button class="tab" onclick="switchMode('kie-edit')" id="mode-kie-edit">
                     <i data-lucide="wand-2"></i><span>Редактировать</span>
                 </button>
-                <button class="tab" onclick="switchMode('kie-create')" id="mode-kie-create">
-                    <i data-lucide="plus-circle"></i><span>Создать</span>
+                <button class="tab" onclick="switchMode('video')" id="mode-video">
+                    <i data-lucide="film"></i><span>Видео</span>
+                </button>
+                <button class="tab" onclick="switchMode('tools')" id="mode-tools">
+                    <i data-lucide="wrench"></i><span data-i18n="tab_tools">Tools</span>
                 </button>
             </nav>
             <button class="history-toggle" onclick="toggleHistory()" id="historyToggle">
@@ -580,6 +583,19 @@
                         <!-- Tier 3: Variant chips (populated by JS) -->
                         <div class="video-variant-row" id="videoVariantRow" hidden></div>
 
+                        <div class="video-price-card" id="videoPriceCard" hidden>
+                            <div class="video-price-main">
+                                <span class="video-price-kicker">KIE pricing</span>
+                                <strong id="videoPriceHeadline">-</strong>
+                            </div>
+                            <div class="video-price-grid">
+                                <span id="videoPriceResolution">-</span>
+                                <span id="videoPriceDuration">-</span>
+                                <span id="videoPriceAudio">-</span>
+                            </div>
+                            <p id="videoPriceNote"></p>
+                        </div>
+
                         <!-- Sentinel: legacy IDs kept hidden so existing JS toggles still work. -->
                         <div id="videoLegacyTabs" hidden aria-hidden="true">
                             <button id="vtab-text" data-i18n="vtab_text">Text</button>
@@ -778,6 +794,14 @@
                                     <select id="kling3ShotType">
                                         <option value="customize" selected>Customize</option>
                                         <option value="intelligent">Intelligent</option>
+                                    </select>
+                                </div>
+                                <div class="field" id="kling3KieModeGroup">
+                                    <label>Kling 3 Quality</label>
+                                    <select id="kling3KieMode">
+                                        <option value="pro" selected>Pro</option>
+                                        <option value="std">Standard</option>
+                                        <option value="4K">4K</option>
                                     </select>
                                 </div>
                                 <div class="field" id="kling3CfgScaleGroup">
@@ -1734,6 +1758,7 @@
                     <button class="generate-btn" id="generateBtn" onclick="handleGenerate()">
                         <i data-lucide="sparkles"></i>
                         <span data-i18n="btn_generate">Generate</span>
+                        <span class="generate-price-badge" id="generatePriceBadge" hidden></span>
                     </button>
                 </div>
             </section>

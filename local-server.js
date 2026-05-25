@@ -23,6 +23,7 @@ if (fs.existsSync(envPath)) {
 
 const apiRoutes = {
   '/api/generate': './api/generate.js',
+  '/api/video-generate': './api/video-generate.js',
   '/api/status': './api/status.js',
   '/api/account': './api/account.js',
   '/api/auth-config': './api/auth-config.js',

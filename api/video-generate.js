@@ -5,6 +5,9 @@ const { requireAuth } = require('../lib/_auth');
 const { uploadBufferToFal } = require('../lib/_fal_upload');
 const { generateGoogleVideoFallback, getGoogleVideoModelId, hasGoogleApiKey } = require('../lib/_google_fallback');
 const FAL_API_KEY = process.env.FAL_API_KEY || process.env.FAL_KEY;
+const KIE_API_KEY = process.env.KIE_API_KEY || process.env.KIE_KEY;
+const KIE_CREATE_TASK_URL = 'https://api.kie.ai/api/v1/jobs/createTask';
+const KIE_STATUS_URL = 'https://api.kie.ai/api/v1/jobs/recordInfo';
 
 // Option definitions with types, values, and defaults for UI rendering
 const OPTION_DEFS = {
@@ -2522,6 +2525,114 @@ async function uploadToFal(fileBuffer, fileName, mimeType) {
     return uploadBufferToFal(fileBuffer, fileName, mimeType);
 }
 
+function getKieVideoModelId(modelId) {
+    const id = String(modelId || '').trim();
+    if (id === 'grok-imagine-t2v') return 'grok-imagine-text-to-video';
+    if (id === 'grok-imagine-i2v') return 'grok-imagine-image-to-video';
+    if (id === 'seedance-2.0-pro-t2v' || id === 'seedance-2.0-pro-i2v' || id === 'seedance-2.0-pro-ref2v') return 'bytedance-seedance-2';
+    if (id === 'seedance-2.0-fast-t2v' || id === 'seedance-2.0-fast-i2v' || id === 'seedance-2.0-fast-ref2v') return 'bytedance-seedance-2-fast';
+    if (id === 'kling-v2.6-pro-t2v') return 'kling-2.6/text-to-video';
+    if (id === 'kling-v2.6-pro-i2v') return 'kling-2.6/image-to-video';
+    if (id.startsWith('kling-v3-') || id.startsWith('kling-o3-')) return 'kling-3.0-video';
+    return null;
+}
+
+function normalizeKieAspectRatio(value) {
+    const v = String(value || '').trim();
+    if (!v || v === 'auto') return undefined;
+    return v;
+}
+
+function addDefined(target, key, value) {
+    if (value === undefined || value === null || value === '') return;
+    target[key] = value;
+}
+
+function mapPayloadToKieVideoInput(localModelId, selectedModel, payload) {
+    const id = String(localModelId || '');
+    const input = {};
+    addDefined(input, 'prompt', payload.prompt);
+    addDefined(input, 'negative_prompt', payload.negative_prompt);
+    addDefined(input, 'duration', payload.duration);
+    addDefined(input, 'aspect_ratio', normalizeKieAspectRatio(payload.aspect_ratio));
+    addDefined(input, 'resolution', payload.resolution);
+    addDefined(input, 'seed', payload.seed);
+    addDefined(input, 'image_url', payload.image_url || payload.start_image_url);
+    addDefined(input, 'start_image_url', payload.start_image_url);
+    addDefined(input, 'end_image_url', payload.end_image_url || payload.tail_image_url);
+    addDefined(input, 'video_url', payload.video_url);
+    if (Array.isArray(payload.image_urls) && payload.image_urls.length) input.image_urls = payload.image_urls;
+    if (Array.isArray(payload.video_urls) && payload.video_urls.length) input.video_urls = payload.video_urls;
+    if (Array.isArray(payload.audio_urls) && payload.audio_urls.length) input.audio_urls = payload.audio_urls;
+    if (Array.isArray(payload.elements) && payload.elements.length) input.elements = payload.elements;
+    if (Array.isArray(payload.multi_prompt) && payload.multi_prompt.length) input.multi_prompt = payload.multi_prompt;
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'generate_audio')) input.generate_audio = !!payload.generate_audio;
+    if (Object.prototype.hasOwnProperty.call(payload, 'keep_audio')) input.keep_audio = !!payload.keep_audio;
+    if (payload.voice_ids) input.voice_ids = payload.voice_ids;
+    if (payload.shot_type) input.shot_type = payload.shot_type;
+
+    if (id.includes('seedance-2.0')) {
+        if (!input.resolution) input.resolution = id.includes('fast') ? '720p' : '1080p';
+        input.duration = Number(input.duration || 5);
+    }
+
+    if (id.includes('grok-imagine')) {
+        input.resolution = input.resolution || '720p';
+        input.duration = Number(input.duration || 6);
+    }
+
+    if (id.includes('kling-v2.6')) {
+        input.duration = Number(input.duration || 5);
+    }
+
+    if (id.startsWith('kling-v3-') || id.startsWith('kling-o3-')) {
+        input.duration = Number(input.duration || 5);
+        input.mode = payload.mode || 'pro';
+        if (id.includes('-i2v') || id.includes('-ref2v') || id.includes('-motion-control')) {
+            input.image_url = input.image_url || input.start_image_url;
+        }
+    }
+
+    return input;
+}
+
+async function submitKieVideoTask(localModelId, selectedModel, payload) {
+    const kieModel = getKieVideoModelId(localModelId);
+    if (!kieModel) return null;
+    if (!KIE_API_KEY) throw new Error('KIE_API_KEY environment variable not configured');
+
+    const response = await fetch(KIE_CREATE_TASK_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${KIE_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: kieModel,
+            input: mapPayloadToKieVideoInput(localModelId, selectedModel, payload),
+        }),
+    });
+
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data || data.code >= 400) {
+        const message = data && (data.msg || data.message || data.error)
+            ? (data.msg || data.message || data.error)
+            : `KIE API error: ${response.status} ${response.statusText}`;
+        throw new Error(message);
+    }
+
+    const taskId = data && data.data && (data.data.taskId || data.data.task_id || data.data.id);
+    if (!taskId) throw new Error('KIE API returned no taskId');
+    const statusUrl = `${KIE_STATUS_URL}?taskId=${encodeURIComponent(taskId)}`;
+    return {
+        provider: 'kie',
+        request_id: taskId,
+        status_url: statusUrl,
+        response_url: statusUrl,
+    };
+}
+
 module.exports = async function handler(req, res) {
     // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -2706,7 +2817,8 @@ module.exports = async function handler(req, res) {
             return res.status(400).json({ error: 'Unknown model_id' });
         }
 
-        if (!FAL_API_KEY && (!getGoogleVideoModelId(model_id) || !hasGoogleApiKey())) {
+        const kieVideoModelId = getKieVideoModelId(model_id);
+        if (!FAL_API_KEY && !kieVideoModelId && (!getGoogleVideoModelId(model_id) || !hasGoogleApiKey())) {
             return res.status(500).json({ error: 'FAL_KEY environment variable not configured' });
         }
 
@@ -2957,6 +3069,9 @@ module.exports = async function handler(req, res) {
             const payloadKey = OPTION_KEY_ALIASES[k] || k;
             payload[payloadKey] = mergedOptions[k];
         }
+        if (typeof mergedOptions.mode !== 'undefined' && mergedOptions.mode !== null && mergedOptions.mode !== '') {
+            payload.mode = mergedOptions.mode;
+        }
         let elementsForPayload = Array.isArray(elements) ? elements : [];
         if (selectedModel.kind === 'kling3-motion-control') {
             const orientation = (typeof payload.character_orientation === 'string' && payload.character_orientation)
@@ -3058,6 +3173,13 @@ module.exports = async function handler(req, res) {
             payload.elements = elementsForPayload;
         }
 
+        if (kieVideoModelId && KIE_API_KEY) {
+            const kieResult = await submitKieVideoTask(model_id, selectedModel, payload);
+            if (kieResult) {
+                return res.status(200).json(kieResult);
+            }
+        }
+
         let response = null;
         if (FAL_API_KEY) {
             response = await fetch(selectedModel.endpoint, {
@@ -3129,6 +3251,3 @@ module.exports = async function handler(req, res) {
 module.exports.config = config;
 module.exports.VIDEO_MODELS = VIDEO_MODELS;
 module.exports.OPTION_DEFS = OPTION_DEFS;
-
-
-
