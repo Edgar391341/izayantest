@@ -4919,10 +4919,18 @@ function getCurrentVideoEngine() {
   return 'kling';
 }
 
+function isAllowedVideoModelId(id) {
+  if (!id) return false;
+  if (id.startsWith('grok-')) return true;
+  if (id.startsWith('seedance-2.0')) return true;
+  if (id.startsWith('kling-v2.6') || id.startsWith('kling-v3') || id.startsWith('kling-o3')) return true;
+  return false;
+}
 function getVideoModelsForEngineMode(engine, mode) {
   if (!Array.isArray(VIDEO_MODELS)) return [];
   return VIDEO_MODELS.filter(function(m) {
     if (!m || !m.id) return false;
+    if (!isAllowedVideoModelId(m.id)) return false;
     var eng = getEngineForModelId(m.id);
     if (eng !== engine) return false;
     var tab = getVideoTabForModelKind(m.kind || '');
@@ -4936,14 +4944,7 @@ function getVideoModelsForEngineMode(engine, mode) {
 }
 
 function getActiveEngines() {
-  if (!Array.isArray(VIDEO_MODELS) || !VIDEO_MODELS.length) {
-    return VIDEO_ENGINE_REGISTRY.filter(function(e) { return e.id === 'kling' || e.id === 'ltx' || e.id === 'seedance'; });
-  }
-  var seen = new Set();
-  VIDEO_MODELS.forEach(function(m) {
-    if (m && m.id) seen.add(getEngineForModelId(m.id));
-  });
-  return VIDEO_ENGINE_REGISTRY.filter(function(e) { return seen.has(e.id); }).sort(function(a, b) { return a.order - b.order; });
+  return VIDEO_ENGINE_REGISTRY.filter(function(e) { return e.id === 'kling' || e.id === 'seedance' || e.id === 'grok'; });
 }
 
 function getModesForEngine(engine) {
