@@ -781,6 +781,13 @@ TOOLS_TOOL_MODEL_IDS['card-studio'] = DEFAULT_TOOLS_MODEL;
 const KIE_EDIT_MODELS = [
   { id: 'nano-banana-2', label: 'Nano Banana 2' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
+  { id: 'gpt-image-2-image-to-image', label: 'GPT Image 2 (Edit)' },
+];
+
+const KIE_CREATE_MODELS = [
+  { id: 'nano-banana-2', label: 'Nano Banana 2' },
+  { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
+  { id: 'gpt-image-2-text-to-image', label: 'GPT Image 2' },
 ];
 
 const KIE_PRICING = {
@@ -793,6 +800,16 @@ const KIE_PRICING = {
     '1K': { credits: 18, usd: 0.09, effectiveUsd: 0.082 },
     '2K': { credits: 18, usd: 0.09, effectiveUsd: 0.082 },
     '4K': { credits: 24, usd: 0.12, effectiveUsd: 0.11 },
+  },
+  'gpt-image-2-text-to-image': {
+    '1K': { credits: 10, usd: 0.05, effectiveUsd: 0.045 },
+    '2K': { credits: 15, usd: 0.075, effectiveUsd: 0.068 },
+    '4K': { credits: 22, usd: 0.11, effectiveUsd: 0.10 },
+  },
+  'gpt-image-2-image-to-image': {
+    '1K': { credits: 12, usd: 0.06, effectiveUsd: 0.054 },
+    '2K': { credits: 18, usd: 0.09, effectiveUsd: 0.081 },
+    '4K': { credits: 26, usd: 0.13, effectiveUsd: 0.118 },
   },
 };
 
@@ -6046,10 +6063,10 @@ function animateSection(el) {
 
 function switchMode(mode) {
   if (mode === 'kling3') mode = 'video';
-  if (mode !== 'tools' && mode !== 'kie-edit') mode = 'tools';
+  if (mode !== 'tools' && mode !== 'kie-edit' && mode !== 'kie-create') mode = 'tools';
   currentMode = mode;
 
-  const modeIds = ['mode-text', 'mode-image', 'mode-video', 'mode-kling3', 'mode-3d', 'mode-tools', 'mode-kie-edit'];
+  const modeIds = ['mode-text', 'mode-image', 'mode-video', 'mode-kling3', 'mode-3d', 'mode-tools', 'mode-kie-edit', 'mode-kie-create'];
   for (const id of modeIds) {
     const el = qs(id);
     if (el) el.classList.remove('active');
@@ -6058,7 +6075,7 @@ function switchMode(mode) {
   if (activeBtn) activeBtn.classList.add('active');
 
   // Hide all sections first
-  const sections = ['imageUploadGroup', 'videoUploadGroup', 'kling3UploadGroup', 'threeDUploadGroup', 'basicOptions', 'toolsSection', 'kieEditSection'];
+  const sections = ['imageUploadGroup', 'videoUploadGroup', 'kling3UploadGroup', 'threeDUploadGroup', 'basicOptions', 'toolsSection', 'kieEditSection', 'kieCreateSection'];
   sections.forEach(id => {
     const el = qs(id);
     if (el) {
@@ -6127,10 +6144,18 @@ function switchMode(mode) {
     updateKieEditSourcePreview();
     updateKiePriceNotes();
   }
+  if (mode === 'kie-create') {
+    const el = qs('kieCreateSection');
+    if (el) {
+      el.style.display = 'block';
+      animateSection(el);
+    }
+    updateKieCreatePriceNote();
+  }
 
   // Hide/show prompt group & generate btn (tools mode has its own)
   const promptGroup = qs('promptGroup');
-  if (promptGroup) promptGroup.style.display = (mode === 'tools' || mode === 'kie-edit') ? 'none' : '';
+  if (promptGroup) promptGroup.style.display = (mode === 'tools' || mode === 'kie-edit' || mode === 'kie-create') ? 'none' : '';
   const genBtn = qs('generateBtn');
   if (genBtn) genBtn.style.display = mode === 'tools' ? 'none' : '';
   // Show @1/@2 reference hint only in image-edit mode
@@ -7532,9 +7557,11 @@ function getKieRequestPrice(modelId, resolution) {
 
 function renderKiePriceNote(el, modelId, resolution) {
   if (!el) return;
+  const isGpt2 = modelId === 'gpt-image-2-text-to-image' || modelId === 'gpt-image-2-image-to-image';
   const price = getKieRequestPrice(modelId, resolution);
-  const modelLabel = (KIE_EDIT_MODELS.concat(TOOLS_MODELS).find((m) => m.id === modelId) || {}).label || modelId;
-  el.innerHTML = `Цена запроса: <strong>${price.credits} credits (${formatUsd(price.usd)})</strong> · ${escapeHtml(modelLabel)} · ${escapeHtml(resolution || '1K')}<br><span>С high-tier top-ups: примерно ${formatUsd(price.effectiveUsd)}.</span>`;
+  const modelLabel = (KIE_EDIT_MODELS.concat(TOOLS_MODELS).concat(KIE_CREATE_MODELS).find((m) => m.id === modelId) || {}).label || modelId;
+  const resText = isGpt2 ? '' : ` · ${escapeHtml(resolution || '1K')}`;
+  el.innerHTML = `Цена запроса: <strong>${price.credits} credits (${formatUsd(price.usd)})</strong> · ${escapeHtml(modelLabel)}${resText}<br><span>С high-tier top-ups: примерно ${formatUsd(price.effectiveUsd)}.</span>`;
 }
 
 function updateKiePriceNotes() {
@@ -7553,6 +7580,24 @@ function updateKiePriceNotes() {
     qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL,
     qs('toolsResolution') ? qs('toolsResolution').value : '1K'
   );
+}
+
+function updateKieCreatePriceNote() {
+  const modelId = qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2';
+  const isGptModel = modelId === 'gpt-image-2-text-to-image';
+  const resolution = isGptModel ? '1K' : (qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K');
+  renderKiePriceNote(qs('kieCreatePriceNote'), modelId, resolution);
+  if (isGptModel) {
+    const resField = qs('kieCreateFieldResolution');
+    if (resField) resField.style.display = 'none';
+    const fmtField = qs('kieCreateFieldOutputFormat');
+    if (fmtField) fmtField.style.display = 'none';
+  } else {
+    const resField = qs('kieCreateFieldResolution');
+    if (resField) resField.style.display = '';
+    const fmtField = qs('kieCreateFieldOutputFormat');
+    if (fmtField) fmtField.style.display = '';
+  }
 }
 
 function setKieEditSource(item) {
@@ -7615,6 +7660,13 @@ function initKieEditControls() {
     if (el && !el.dataset.priceBound) {
       el.dataset.priceBound = 'true';
       el.addEventListener('change', updateKiePriceNotes);
+    }
+  });
+  ['kieCreateModel', 'kieCreateResolution', 'kieCreateAspectRatio'].forEach((id) => {
+    const el = qs(id);
+    if (el && !el.dataset.priceBound) {
+      el.dataset.priceBound = 'true';
+      el.addEventListener('change', updateKieCreatePriceNote);
     }
   });
   updateKieEditSourcePreview();
@@ -9151,6 +9203,29 @@ async function submitKieEditRequest(task) {
     body: JSON.stringify(body),
   });
   if (!res.ok) throw await createResponseError(res, 'Image editing failed');
+  return await res.json();
+}
+
+async function submitKieCreateRequest(task) {
+  const modelId = qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2';
+  const isGptModel = modelId === 'gpt-image-2-text-to-image';
+  const body = {
+    model_id: modelId,
+    prompt: task.prompt,
+  };
+  if (!isGptModel) {
+    body.resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
+    body.aspect_ratio = qs('kieCreateAspectRatio') ? qs('kieCreateAspectRatio').value : 'auto';
+    body.output_format = qs('kieCreateOutputFormat') ? qs('kieCreateOutputFormat').value : 'png';
+  } else {
+    body.aspect_ratio = qs('kieCreateAspectRatio') ? qs('kieCreateAspectRatio').value : 'auto';
+  }
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw await createResponseError(res, 'Image generation failed');
   return await res.json();
 }
 
@@ -12459,6 +12534,7 @@ async function startTask(taskId) {
     let res;
     if (t.mode === 'tools') res = await submitToolsRequest(t);
     else if (t.mode === 'kie-edit') res = await submitKieEditRequest(t);
+    else if (t.mode === 'kie-create') res = await submitKieCreateRequest(t);
     else if (t.mode === 'video') res = await submitVideoRequest(t);
     else if (t.mode === '3d') res = await submit3dRequest(t);
     else if (t.mode === 'kling3') res = await submitKling3Request(t);
@@ -12523,6 +12599,8 @@ function captureGenerationContext() {
     toolsTool: currentToolsTool,
     prompt: currentMode === 'kie-edit'
       ? (qs('kieEditPrompt') ? qs('kieEditPrompt').value : '')
+      : currentMode === 'kie-create'
+      ? (qs('kieCreatePrompt') ? qs('kieCreatePrompt').value : '')
       : (qs('promptInput') ? qs('promptInput').value : ''),
     selects: {},
     inputs: {},
@@ -12579,6 +12657,10 @@ async function handleGenerate() {
       const format = qs('toolsBgOutputFormat') ? qs('toolsBgOutputFormat').value : 'rgba';
       prompt = `Background Removal · ${format}`;
     }
+  } else if (currentMode === 'kie-create') {
+    const sourcePromptEl = qs('kieCreatePrompt');
+    const _rawPrompt = sourcePromptEl ? sourcePromptEl.value.trim() : '';
+    prompt = _rawPrompt ? `/${_rawPrompt}` : '';
   } else {
     const sourcePromptEl = currentMode === 'kie-edit' ? qs('kieEditPrompt') : qs('promptInput');
     const _rawPrompt = sourcePromptEl ? normalizePromptRefsForCurrentContext(sourcePromptEl.value.trim()) : '';
@@ -12687,7 +12769,14 @@ async function handleGenerate() {
     }
   }
 
-  if (currentMode !== '3d' && currentMode !== 'video' && currentMode !== 'kling3' && currentMode !== 'tools' && currentMode !== 'kie-edit' && !prompt) {
+  if (currentMode === 'kie-create') {
+    if (!prompt) {
+      showToast('Введите промпт для генерации', 'error');
+      return;
+    }
+  }
+
+  if (currentMode !== '3d' && currentMode !== 'video' && currentMode !== 'kling3' && currentMode !== 'tools' && currentMode !== 'kie-edit' && currentMode !== 'kie-create' && !prompt) {
     showToast(window.I18N ? I18N.t('toast_enter_prompt') : 'Please enter a prompt', 'error');
     return;
   }
@@ -12760,6 +12849,7 @@ async function handleGenerate() {
   let model_id;
   if (currentMode === 'tools') model_id = getActiveToolsModelId();
   else if (currentMode === 'kie-edit') model_id = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
+  else if (currentMode === 'kie-create') model_id = qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2';
   else if (currentMode === 'text') model_id = qs('imageModelText') ? qs('imageModelText').value : DEFAULT_IMAGE_TEXT_MODEL;
   else if (currentMode === 'image') model_id = qs('imageModelEdit') ? qs('imageModelEdit').value : DEFAULT_IMAGE_EDIT_MODEL;
   else if (currentMode === 'video') model_id = qs('videoModel') ? qs('videoModel').value : '';
@@ -12814,6 +12904,12 @@ function initModels() {
   if (kieEditSel) {
     setSelectOptions(kieEditSel, KIE_EDIT_MODELS);
     if (!kieEditSel.value) kieEditSel.value = DEFAULT_KIE_EDIT_MODEL;
+  }
+
+  const kieCreateSel = qs('kieCreateModel');
+  if (kieCreateSel) {
+    setSelectOptions(kieCreateSel, KIE_CREATE_MODELS);
+    if (!kieCreateSel.value) kieCreateSel.value = 'nano-banana-2';
   }
 
   const threeDSel = qs('threeDModel');
@@ -13258,6 +13354,7 @@ const PERSISTED_SELECTS = [
   'toolsHeygenOutputLanguage',
   'aspectRatioBase', 'toolsOutputFormat',
   'kieEditModel', 'kieEditResolution', 'kieEditAspectRatio', 'kieEditOutputFormat',
+  'kieCreateModel', 'kieCreateResolution', 'kieCreateAspectRatio', 'kieCreateOutputFormat',
   'toolsModel', 'toolsResolution', 'toolsAspectRatio', 'toolsWebSearch', 'toolsGoogleSearch',
   'toolsGptImageSize', 'toolsGptQuality', 'toolsGptOutputFormat', 'toolsGptBackground', 'toolsGptFidelity',
   'toolsEnhancerModel', 'toolsEnhancerOutputFormat', 'toolsEnhancerSubjectDetection', 'toolsEnhancerCreativity', 'toolsEnhancerTexture',
@@ -13266,7 +13363,7 @@ const PERSISTED_SELECTS = [
 ];
 
 const PERSISTED_INPUTS = [
-  'promptInput',
+  'promptInput', 'kieCreatePrompt',
   'threeDFaceCount', 'threeDMeshyTargetPolycount', 'threeDMeshySeed',
   'threeDMeshyTexturePrompt', 'threeDMeshyTextureImageUrl',
   'threeDRetextureStylePrompt',

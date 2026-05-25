@@ -50,6 +50,9 @@
                 <button class="tab" onclick="switchMode('kie-edit')" id="mode-kie-edit">
                     <i data-lucide="wand-2"></i><span>Редактировать</span>
                 </button>
+                <button class="tab" onclick="switchMode('kie-create')" id="mode-kie-create">
+                    <i data-lucide="plus-circle"></i><span>Создать</span>
+                </button>
             </nav>
             <button class="history-toggle" onclick="toggleHistory()" id="historyToggle">
                 <i data-lucide="clock"></i>
@@ -1639,6 +1642,54 @@
                             </div>
                         </div>
                         <div class="kie-price-note" id="kieEditPriceNote"></div>
+                    </div>
+
+                    <div id="kieCreateSection" class="section-block" style="display: none;">
+                        <div class="kie-edit-head">
+                            <div>
+                                <span class="tools-suite-kicker">AI Генерация</span>
+                                <h3>Создание изображения</h3>
+                            </div>
+                        </div>
+
+                        <div class="control-group kie-edit-prompt-group">
+                            <label class="group-label" for="kieCreatePrompt">Промпт для генерации</label>
+                            <textarea id="kieCreatePrompt" class="wiz-textarea" rows="4" placeholder="Опишите изображение, которое хотите создать... Например: футуристический город ночью с неоновыми огнями и летающими машинами"></textarea>
+                        </div>
+
+                        <div class="settings-grid kie-edit-settings">
+                            <div class="field">
+                                <label>Model</label>
+                                <select id="kieCreateModel"></select>
+                            </div>
+                            <div class="field" id="kieCreateFieldResolution">
+                                <label>Resolution</label>
+                                <select id="kieCreateResolution">
+                                    <option value="1K" selected>1K</option>
+                                    <option value="2K">2K</option>
+                                    <option value="4K">4K</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Aspect Ratio</label>
+                                <select id="kieCreateAspectRatio">
+                                    <option value="auto" selected>Auto</option>
+                                    <option value="1:1">1:1</option>
+                                    <option value="3:4">3:4</option>
+                                    <option value="4:3">4:3</option>
+                                    <option value="9:16">9:16</option>
+                                    <option value="16:9">16:9</option>
+                                </select>
+                            </div>
+                            <div class="field" id="kieCreateFieldOutputFormat">
+                                <label>Output</label>
+                                <select id="kieCreateOutputFormat">
+                                    <option value="png" selected>PNG</option>
+                                    <option value="jpeg">JPEG</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="kie-price-note" id="kieCreatePriceNote"></div>
                     </div>
 
                     <button class="generate-btn" id="generateBtn" onclick="handleGenerate()">

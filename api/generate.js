@@ -142,7 +142,14 @@ function getKieImageModelId(modelId) {
     const id = String(modelId || '').trim();
     if (id === 'nano-banana-2' || id === 'nano-banana-2/edit' || id === 'kie/nano-banana-2') return 'nano-banana-2';
     if (id === 'nano-banana-pro' || id === 'nano-banana-pro/edit' || id === 'kie/nano-banana-pro') return 'nano-banana-pro';
+    if (id === 'gpt-image-2-text-to-image') return 'gpt-image-2-text-to-image';
+    if (id === 'gpt-image-2-image-to-image') return 'gpt-image-2-image-to-image';
     return null;
+}
+
+function isGptImage2KieModel(modelId) {
+    const id = String(modelId || '').trim();
+    return id === 'gpt-image-2-text-to-image' || id === 'gpt-image-2-image-to-image';
 }
 
 async function submitKieImageTask(body) {
@@ -152,14 +159,21 @@ async function submitKieImageTask(body) {
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (!prompt) throw new Error('Prompt is required');
 
+    const isGpt2 = isGptImage2KieModel(kieModel);
     const imageInput = await normalizeKieImageInputs(body.image_urls || body.image_input || []);
     const input = {
         prompt,
-        image_input: imageInput,
-        aspect_ratio: body.aspect_ratio || 'auto',
-        resolution: body.resolution || '1K',
-        output_format: body.output_format || 'png',
     };
+
+    if (isGpt2) {
+        if (imageInput.length > 0) input.input_urls = imageInput;
+        input.aspect_ratio = body.aspect_ratio || 'auto';
+    } else {
+        input.image_input = imageInput;
+        input.aspect_ratio = body.aspect_ratio || 'auto';
+        input.resolution = body.resolution || '1K';
+        input.output_format = body.output_format || 'png';
+    }
 
     const requestBody = {
         model: kieModel,
