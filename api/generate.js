@@ -172,7 +172,8 @@ async function submitKieImageTask(body) {
         input.image_input = imageInput;
         input.aspect_ratio = body.aspect_ratio || 'auto';
         input.resolution = body.resolution || '1K';
-        input.output_format = body.output_format || 'png';
+        const outputFormat = String(body.output_format || 'png').toLowerCase();
+        input.output_format = outputFormat === 'jpeg' ? 'jpeg' : 'png';
     }
 
     const requestBody = {
