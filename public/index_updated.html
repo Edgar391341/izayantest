@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="profile-menu-wrap">
+            <button class="profile-btn" onclick="toggleProfileMenu()" id="profileBtn" title="Menu">
+                <span class="profile-btn-avatar" id="profileBtnAvatar" style="display:none;"></span>
+                <i data-lucide="user" id="profileBtnIcon"></i>
+                <span class="profile-badge" id="profileBadge" style="display:none;"></span>
+            </button>
+            <div class="profile-dropdown" id="profileDropdown">
+                <div class="profile-dropdown-account" id="accountMenuSummary" style="display:none;">
+                    <div class="profile-dropdown-avatar" id="accountMenuAvatar">N</div>
+                    <div class="profile-dropdown-meta">
+                        <span class="profile-dropdown-name" id="accountMenuName">Guest</span>
+                        <span class="profile-dropdown-email" id="accountMenuEmail"></span>
+                    </div>
+                </div>
+                <button class="profile-dropdown-item" onclick="openProfilePage(); toggleProfileMenu();" id="profileOpenDropdown">
+                    <i data-lucide="user"></i>
+                    <span id="profileMenuLabel">Profile</span>
+                </button>
+                <button class="profile-dropdown-item" onclick="toggleNews(); toggleProfileMenu();" id="newsToggleDropdown">
+                    <i data-lucide="newspaper"></i>
+                    <span data-i18n="news_title">News</span>
+                    <span class="news-badge" id="newsBadge" style="display:none;">0</span>
+                </button>
+                <button class="profile-dropdown-item" onclick="toggleLangPicker(); toggleProfileMenu();">
+                    <i data-lucide="globe"></i>
+                    <span data-i18n="lang_title">Language</span>
+                </button>
+            </div>
+        </div>
+        <nav class="mode-tabs">
+            <button class="tab active" onclick="switchMode('tools')" id="mode-tools">
+                <i data-lucide="wrench"></i><span data-i18n="tab_tools">Tools</span>
+            </button>
+            <button class="tab" onclick="switchMode('kie-edit')" id="mode-kie-edit">
+                <i data-lucide="wand-2"></i><span>Редактировать</span>
+            </button>
+            <button class="tab" onclick="switchMode('create-image')" id="mode-create-image">
+                <i data-lucide="image"></i><span>Создать</span>
+            </button>
+        </nav>
+        <button class="history-toggle" onclick="toggleHistory()" id="historyToggle">
+            <i data-lucide="clock"></i>
+            <span data-i18n="history_title">History</span>
+        </button>
+    </header>
+</body>
+</html>
