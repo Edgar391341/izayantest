@@ -3,6 +3,68 @@ if (window.lucide && typeof window.lucide.createIcons === 'function') {
   window.lucide.createIcons();
 }
 
+const SITE_AUTH_TRUST_KEY = 'nano_site_trusted_device';
+
+function setSiteLocked(locked) {
+  document.body.classList.toggle('site-locked', !!locked);
+  document.body.classList.toggle('site-unlocked', !locked);
+  const gate = document.getElementById('siteAuthGate');
+  if (gate) gate.hidden = !locked;
+}
+
+async function checkSiteAuthTrust() {
+  try {
+    const res = await fetch('/api/auth-config', { method: 'GET', credentials: 'same-origin' });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && data.trusted) {
+      localStorage.setItem(SITE_AUTH_TRUST_KEY, '1');
+      setSiteLocked(false);
+      return true;
+    }
+  } catch (_) {}
+  setSiteLocked(true);
+  return false;
+}
+
+function initSitePasswordGate() {
+  const gate = document.getElementById('siteAuthGate');
+  const form = document.getElementById('siteAuthForm');
+  const input = document.getElementById('siteAuthPassword');
+  const error = document.getElementById('siteAuthError');
+  if (!gate || !form || !input) return;
+
+  setSiteLocked(true);
+  checkSiteAuthTrust().then((trusted) => {
+    if (!trusted) input.focus({ preventScroll: true });
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (error) error.textContent = '';
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: input.value }),
+      });
+      if (!res.ok) throw new Error('Wrong password');
+      localStorage.setItem(SITE_AUTH_TRUST_KEY, '1');
+      input.value = '';
+      setSiteLocked(false);
+    } catch (err) {
+      if (error) error.textContent = err && err.message ? err.message : 'Login failed';
+      input.select();
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+}
+
+initSitePasswordGate();
+
 // State
 let currentMode = 'tools';
 let currentVideoTab = 'text-to-video';
@@ -696,8 +758,11 @@ const GPT_IMAGE_15_TEXT_MODEL_ID = 'gpt-image-1.5';
 const GPT_IMAGE_15_EDIT_MODEL_ID = 'gpt-image-1.5/edit';
 const GPT_IMAGE_2_TEXT_MODEL_ID = 'openai/gpt-image-2';
 const GPT_IMAGE_2_EDIT_MODEL_ID = 'openai/gpt-image-2/edit';
+const KIE_GPT_IMAGE_2_TEXT_MODEL_ID = 'gpt-image-2-text-to-image';
+const KIE_GPT_IMAGE_2_EDIT_MODEL_ID = 'gpt-image-2-image-to-image';
 const GPT_IMAGE_TEXT_MODEL_IDS = new Set([GPT_IMAGE_15_TEXT_MODEL_ID, GPT_IMAGE_2_TEXT_MODEL_ID]);
 const GPT_IMAGE_EDIT_MODEL_IDS = new Set([GPT_IMAGE_15_EDIT_MODEL_ID, GPT_IMAGE_2_EDIT_MODEL_ID]);
+const KIE_GPT_IMAGE_2_MODEL_IDS = new Set([KIE_GPT_IMAGE_2_TEXT_MODEL_ID, KIE_GPT_IMAGE_2_EDIT_MODEL_ID]);
 const GPT_IMAGE_15_TEXT_SIZE_OPTIONS = [
   { value: '1024x1024', label: '1024×1024' },
   { value: '1536x1024', label: '1536×1024' },
@@ -775,19 +840,20 @@ const IMAGE_MODELS_EDIT = [
 const TOOLS_MODELS = [
   { id: 'nano-banana-2', label: 'Nano Banana 2 (KIE)' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro (KIE)' },
+  { id: KIE_GPT_IMAGE_2_EDIT_MODEL_ID, label: 'GPT Image 2 (KIE Edit)' },
 ];
 TOOLS_TOOL_MODEL_IDS['card-studio'] = DEFAULT_TOOLS_MODEL;
 
 const KIE_EDIT_MODELS = [
   { id: 'nano-banana-2', label: 'Nano Banana 2' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
-  { id: 'gpt-image-2-image-to-image', label: 'GPT Image 2 (Edit)' },
+  { id: KIE_GPT_IMAGE_2_EDIT_MODEL_ID, label: 'GPT Image 2 (Edit)' },
 ];
 
 const KIE_CREATE_MODELS = [
   { id: 'nano-banana-2', label: 'Nano Banana 2' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
-  { id: 'gpt-image-2-text-to-image', label: 'GPT Image 2' },
+  { id: KIE_GPT_IMAGE_2_TEXT_MODEL_ID, label: 'GPT Image 2' },
 ];
 
 const KIE_PRICING = {
@@ -802,14 +868,14 @@ const KIE_PRICING = {
     '4K': { credits: 24, usd: 0.12, effectiveUsd: 0.11 },
   },
   'gpt-image-2-text-to-image': {
-    '1K': { credits: 10, usd: 0.05, effectiveUsd: 0.045 },
-    '2K': { credits: 15, usd: 0.075, effectiveUsd: 0.068 },
-    '4K': { credits: 22, usd: 0.11, effectiveUsd: 0.10 },
+    '1K': { credits: 6, usd: 0.03, effectiveUsd: 0.027 },
+    '2K': { credits: 10, usd: 0.05, effectiveUsd: 0.045 },
+    '4K': { credits: 16, usd: 0.08, effectiveUsd: 0.072 },
   },
   'gpt-image-2-image-to-image': {
-    '1K': { credits: 12, usd: 0.06, effectiveUsd: 0.054 },
-    '2K': { credits: 18, usd: 0.09, effectiveUsd: 0.081 },
-    '4K': { credits: 26, usd: 0.13, effectiveUsd: 0.118 },
+    '1K': { credits: 6, usd: 0.03, effectiveUsd: 0.027 },
+    '2K': { credits: 10, usd: 0.05, effectiveUsd: 0.045 },
+    '4K': { credits: 16, usd: 0.08, effectiveUsd: 0.072 },
   },
 };
 
@@ -5930,22 +5996,28 @@ function updateToolsGptControls() {
   const modelId = modelSel ? modelSel.value : DEFAULT_TOOLS_MODEL;
   const isGpt15 = modelId === GPT_IMAGE_15_EDIT_MODEL_ID;
   const isGpt2 = modelId === GPT_IMAGE_2_EDIT_MODEL_ID;
+  const isKieGpt2 = modelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
+  const isAnyGpt2 = isGpt2 || isKieGpt2;
   const wrap = qs('toolsGptImageOptions');
   const sizeSelect = qs('toolsGptImageSize');
   const customFields = qs('toolsGptCustomSizeFields');
   const bgField = qs('toolsGptBackgroundField');
   const fidelityField = qs('toolsGptFidelityField');
+  const sizeField = sizeSelect ? sizeSelect.closest('.field') : null;
+  const outputField = qs('toolsGptOutputFormat') ? qs('toolsGptOutputFormat').closest('.field') : null;
 
   if (wrap) wrap.style.display = (isGpt15 || isGpt2) ? 'grid' : 'none';
+  if (sizeField) sizeField.style.display = isKieGpt2 ? 'none' : '';
+  if (outputField) outputField.style.display = isKieGpt2 ? 'none' : '';
   if (sizeSelect) {
     const lastModelId = String(sizeSelect.dataset.modelId || '');
-    const options = isGpt2 ? GPT_IMAGE_2_EDIT_SIZE_OPTIONS : GPT_IMAGE_15_EDIT_SIZE_OPTIONS;
-    const fallback = isGpt2 ? GPT_IMAGE_2_TOOLS_DEFAULT_SIZE : '1024x1536';
+    const options = isAnyGpt2 ? GPT_IMAGE_2_EDIT_SIZE_OPTIONS : GPT_IMAGE_15_EDIT_SIZE_OPTIONS;
+    const fallback = isAnyGpt2 ? GPT_IMAGE_2_TOOLS_DEFAULT_SIZE : '1024x1536';
     replaceSelectOptions(sizeSelect, options, fallback);
-    if (((lastModelId && lastModelId !== modelId) || !lastModelId) && isGpt2) sizeSelect.value = GPT_IMAGE_2_TOOLS_DEFAULT_SIZE;
+    if (((lastModelId && lastModelId !== modelId) || !lastModelId) && isAnyGpt2) sizeSelect.value = GPT_IMAGE_2_TOOLS_DEFAULT_SIZE;
     sizeSelect.dataset.modelId = modelId;
   }
-  if (isGpt2) {
+  if (isAnyGpt2) {
     const widthInput = qs('toolsGptImageWidth');
     const heightInput = qs('toolsGptImageHeight');
     if (widthInput && (!String(widthInput.value || '').trim() || String(widthInput.dataset.modelId || '') !== modelId)) {
@@ -5959,7 +6031,7 @@ function updateToolsGptControls() {
   }
   if (bgField) bgField.style.display = isGpt15 ? '' : 'none';
   if (fidelityField) fidelityField.style.display = isGpt15 ? '' : 'none';
-  const customVisible = !!(isGpt2 && sizeSelect && sizeSelect.value === 'custom');
+  const customVisible = !!(isAnyGpt2 && sizeSelect && sizeSelect.value === 'custom');
   if (customFields) customFields.style.display = customVisible ? 'grid' : 'none';
   syncGptImage2CustomSizeFields('toolsGptImageWidth', 'toolsGptImageHeight', 'toolsGptCustomSizeHint', customVisible);
 }
@@ -7509,15 +7581,16 @@ window.wizQuickChar = wizQuickChar;
 // --- Model-aware settings visibility ---
 function wizUpdateToolsSettings() {
   const model = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
-  const isGpt = GPT_IMAGE_EDIT_MODEL_IDS.has(model);
+  const isKieGpt2 = model === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
+  const isGpt = GPT_IMAGE_EDIT_MODEL_IDS.has(model) || isKieGpt2;
 
   // Resolution: available for nano models only
   const fRes = document.getElementById('toolsFieldResolution');
-  if (fRes) fRes.style.display = isGpt ? 'none' : '';
+  if (fRes) fRes.style.display = isKieGpt2 ? '' : (isGpt ? 'none' : '');
 
   // Aspect: nano models only, GPT models use image_size presets
   const fAsp = document.getElementById('toolsFieldAspect');
-  if (fAsp) fAsp.style.display = isGpt ? 'none' : '';
+  if (fAsp) fAsp.style.display = isKieGpt2 ? '' : (isGpt ? 'none' : '');
 
   const fOut = document.getElementById('toolsFieldOutputFormat');
   if (fOut) fOut.style.display = isGpt ? 'none' : '';
@@ -7530,6 +7603,8 @@ function wizUpdateToolsSettings() {
 
   const fSeed = document.getElementById('toolsFieldSeed');
   if (fSeed) fSeed.style.display = 'none';
+
+  updateAspectCustomInput('toolsAspectRatio', 'toolsAspectRatioCustom');
 
   updateToolsGptControls();
 
@@ -7555,12 +7630,51 @@ function getKieRequestPrice(modelId, resolution) {
   return modelPricing[String(resolution || '1K')] || modelPricing['1K'];
 }
 
+function getCustomAspectRatio(selectId, inputId, fallback = 'auto') {
+  const select = qs(selectId);
+  const value = select ? String(select.value || '').trim() : '';
+  if (value !== 'custom') return value || fallback;
+  const input = qs(inputId);
+  const custom = input ? String(input.value || '').trim() : '';
+  return custom || fallback;
+}
+
+function updateAspectCustomInput(selectId, inputId) {
+  const select = qs(selectId);
+  const input = qs(inputId);
+  if (!select || !input) return;
+  const visible = select.value === 'custom';
+  input.style.display = visible ? '' : 'none';
+  input.disabled = !visible;
+  if (visible) input.focus({ preventScroll: true });
+}
+
+function initAspectCustomControl(selectId, inputId, onChange) {
+  const select = qs(selectId);
+  const input = qs(inputId);
+  if (!select || !input || select.dataset.customAspectBound) return;
+  select.dataset.customAspectBound = 'true';
+  const sync = () => {
+    updateAspectCustomInput(selectId, inputId);
+    if (typeof onChange === 'function') onChange();
+    if (typeof saveAppState === 'function') saveAppState();
+  };
+  select.addEventListener('change', sync);
+  input.addEventListener('input', () => {
+    if (typeof saveAppState === 'function') saveAppState();
+  });
+  input.addEventListener('change', () => {
+    if (typeof onChange === 'function') onChange();
+    if (typeof saveAppState === 'function') saveAppState();
+  });
+  updateAspectCustomInput(selectId, inputId);
+}
+
 function renderKiePriceNote(el, modelId, resolution) {
   if (!el) return;
-  const isGpt2 = modelId === 'gpt-image-2-text-to-image' || modelId === 'gpt-image-2-image-to-image';
   const price = getKieRequestPrice(modelId, resolution);
   const modelLabel = (KIE_EDIT_MODELS.concat(TOOLS_MODELS).concat(KIE_CREATE_MODELS).find((m) => m.id === modelId) || {}).label || modelId;
-  const resText = isGpt2 ? '' : ` · ${escapeHtml(resolution || '1K')}`;
+  const resText = ` · ${escapeHtml(resolution || '1K')}`;
   el.innerHTML = `Цена запроса: <strong>${price.credits} credits (${formatUsd(price.usd)})</strong> · ${escapeHtml(modelLabel)}${resText}<br><span>С high-tier top-ups: примерно ${formatUsd(price.effectiveUsd)}.</span>`;
 }
 
@@ -7582,21 +7696,35 @@ function updateKiePriceNotes() {
   );
 }
 
+function updateKieEditModelFields() {
+  const modelId = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
+  const isGptModel = modelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
+  const resField = qs('kieEditResolution') ? qs('kieEditResolution').closest('.field') : null;
+  const fmtField = qs('kieEditOutputFormat') ? qs('kieEditOutputFormat').closest('.field') : null;
+  const qualityField = qs('kieEditFieldQuality');
+  if (resField) resField.style.display = '';
+  if (fmtField) fmtField.style.display = isGptModel ? 'none' : '';
+  if (qualityField) qualityField.style.display = 'none';
+}
+
 function updateKieCreatePriceNote() {
   const modelId = qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2';
-  const isGptModel = modelId === 'gpt-image-2-text-to-image';
-  const resolution = isGptModel ? '1K' : (qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K');
+  const isGptModel = modelId === KIE_GPT_IMAGE_2_TEXT_MODEL_ID;
+  const resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
   renderKiePriceNote(qs('kieCreatePriceNote'), modelId, resolution);
+  const qualityField = qs('kieCreateFieldQuality');
   if (isGptModel) {
     const resField = qs('kieCreateFieldResolution');
-    if (resField) resField.style.display = 'none';
+    if (resField) resField.style.display = '';
     const fmtField = qs('kieCreateFieldOutputFormat');
     if (fmtField) fmtField.style.display = 'none';
+    if (qualityField) qualityField.style.display = 'none';
   } else {
     const resField = qs('kieCreateFieldResolution');
     if (resField) resField.style.display = '';
     const fmtField = qs('kieCreateFieldOutputFormat');
     if (fmtField) fmtField.style.display = '';
+    if (qualityField) qualityField.style.display = 'none';
   }
 }
 
@@ -7655,14 +7783,20 @@ function initKieEditControls() {
       input.value = '';
     });
   }
-  ['kieEditModel', 'kieEditResolution', 'kieEditAspectRatio', 'kieEditOutputFormat', 'toolsModel', 'toolsResolution'].forEach((id) => {
+  initAspectCustomControl('toolsAspectRatio', 'toolsAspectRatioCustom', updateKiePriceNotes);
+  initAspectCustomControl('kieEditAspectRatio', 'kieEditAspectRatioCustom', updateKiePriceNotes);
+  initAspectCustomControl('kieCreateAspectRatio', 'kieCreateAspectRatioCustom', updateKieCreatePriceNote);
+  ['kieEditModel', 'kieEditResolution', 'kieEditOutputFormat', 'kieEditQuality', 'toolsModel', 'toolsResolution'].forEach((id) => {
     const el = qs(id);
     if (el && !el.dataset.priceBound) {
       el.dataset.priceBound = 'true';
-      el.addEventListener('change', updateKiePriceNotes);
+      el.addEventListener('change', () => {
+        updateKieEditModelFields();
+        updateKiePriceNotes();
+      });
     }
   });
-  ['kieCreateModel', 'kieCreateResolution', 'kieCreateAspectRatio'].forEach((id) => {
+  ['kieCreateModel', 'kieCreateResolution', 'kieCreateQuality'].forEach((id) => {
     const el = qs(id);
     if (el && !el.dataset.priceBound) {
       el.dataset.priceBound = 'true';
@@ -7670,7 +7804,9 @@ function initKieEditControls() {
     }
   });
   updateKieEditSourcePreview();
+  updateKieEditModelFields();
   updateKiePriceNotes();
+  updateKieCreatePriceNote();
 }
 
 // --- Auto-resize helper for growing textareas ---
@@ -9116,7 +9252,8 @@ async function submitToolsRequest(task) {
 
   const modelId = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
   const isNano2 = modelId === 'nano-banana-2' || modelId === 'nano-banana-2/edit';
-  const isGpt = GPT_IMAGE_EDIT_MODEL_IDS.has(modelId);
+  const isKieGpt2 = modelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
+  const isGpt = GPT_IMAGE_EDIT_MODEL_IDS.has(modelId) || isKieGpt2;
   const isGpt15 = modelId === GPT_IMAGE_15_EDIT_MODEL_ID;
   const body = { model_id: modelId, prompt: task.prompt };
 
@@ -9139,20 +9276,29 @@ async function submitToolsRequest(task) {
   }
 
   if (!isGpt) {
-    const aspectRatio = qs('toolsAspectRatio') ? qs('toolsAspectRatio').value : '3:4';
+    const aspectRatio = getCustomAspectRatio('toolsAspectRatio', 'toolsAspectRatioCustom', '3:4');
     if (aspectRatio) body.aspect_ratio = aspectRatio;
 
     const outputFormat = qs('toolsOutputFormat') ? qs('toolsOutputFormat').value : 'png';
     if (outputFormat) body.output_format = outputFormat;
   } else {
-    const imageSize = buildGptImageSizePayload('toolsGptImageSize', 'toolsGptImageWidth', 'toolsGptImageHeight', 'toolsGptCustomSizeHint', modelId);
-    if (imageSize) body.image_size = imageSize;
+    if (!isKieGpt2) {
+      const imageSize = buildGptImageSizePayload('toolsGptImageSize', 'toolsGptImageWidth', 'toolsGptImageHeight', 'toolsGptCustomSizeHint', modelId);
+      if (imageSize) body.image_size = imageSize;
+    }
 
-    const quality = qs('toolsGptQuality') ? qs('toolsGptQuality').value : 'high';
-    if (quality) body.quality = quality;
+    if (isKieGpt2) {
+      const aspectRatio = getCustomAspectRatio('toolsAspectRatio', 'toolsAspectRatioCustom', '3:4');
+      if (aspectRatio) body.aspect_ratio = aspectRatio;
+    }
 
-    const outputFormat = qs('toolsGptOutputFormat') ? qs('toolsGptOutputFormat').value : 'png';
-    if (outputFormat) body.output_format = outputFormat;
+    if (!isKieGpt2) {
+      const quality = qs('toolsGptQuality') ? qs('toolsGptQuality').value : 'high';
+      if (quality) body.quality = quality;
+
+      const outputFormat = qs('toolsGptOutputFormat') ? qs('toolsGptOutputFormat').value : 'png';
+      if (outputFormat) body.output_format = outputFormat;
+    }
 
     if (isGpt15) {
       const background = qs('toolsGptBackground') ? qs('toolsGptBackground').value : 'auto';
@@ -9187,16 +9333,21 @@ async function submitToolsRequest(task) {
 
 async function submitKieEditRequest(task) {
   const modelId = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
+  const isGptModel = modelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
   const imageUrls = await resolveUploadItemKieInputs(uploadedKieEditImages, 'kie-edit-source', task, 1);
   if (!imageUrls.length) throw new Error('Select an image to edit');
   const body = {
     model_id: modelId,
     prompt: task.prompt,
     image_urls: imageUrls,
-    resolution: qs('kieEditResolution') ? qs('kieEditResolution').value : '1K',
-    aspect_ratio: qs('kieEditAspectRatio') ? qs('kieEditAspectRatio').value : 'auto',
-    output_format: qs('kieEditOutputFormat') ? qs('kieEditOutputFormat').value : 'png',
+    aspect_ratio: getCustomAspectRatio('kieEditAspectRatio', 'kieEditAspectRatioCustom', 'auto'),
   };
+  if (isGptModel) {
+    body.resolution = qs('kieEditResolution') ? qs('kieEditResolution').value : '1K';
+  } else {
+    body.resolution = qs('kieEditResolution') ? qs('kieEditResolution').value : '1K';
+    body.output_format = qs('kieEditOutputFormat') ? qs('kieEditOutputFormat').value : 'png';
+  }
   const res = await fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -9208,17 +9359,18 @@ async function submitKieEditRequest(task) {
 
 async function submitKieCreateRequest(task) {
   const modelId = qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2';
-  const isGptModel = modelId === 'gpt-image-2-text-to-image';
+  const isGptModel = modelId === KIE_GPT_IMAGE_2_TEXT_MODEL_ID;
   const body = {
     model_id: modelId,
     prompt: task.prompt,
   };
   if (!isGptModel) {
     body.resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
-    body.aspect_ratio = qs('kieCreateAspectRatio') ? qs('kieCreateAspectRatio').value : 'auto';
+    body.aspect_ratio = getCustomAspectRatio('kieCreateAspectRatio', 'kieCreateAspectRatioCustom', 'auto');
     body.output_format = qs('kieCreateOutputFormat') ? qs('kieCreateOutputFormat').value : 'png';
   } else {
-    body.aspect_ratio = qs('kieCreateAspectRatio') ? qs('kieCreateAspectRatio').value : 'auto';
+    body.aspect_ratio = getCustomAspectRatio('kieCreateAspectRatio', 'kieCreateAspectRatioCustom', 'auto');
+    body.resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
   }
   const res = await fetch('/api/generate', {
     method: 'POST',
@@ -12633,7 +12785,7 @@ async function handleGenerate() {
   if (currentMode === 'tools') {
     if (currentToolsTool === 'card-studio') {
       const toolsModelId = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
-      prompt = '/' + (toolsModelId === GPT_IMAGE_2_EDIT_MODEL_ID
+      prompt = '/' + (toolsModelId === GPT_IMAGE_2_EDIT_MODEL_ID || toolsModelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID
         ? assembleWbCardPromptGptImage2(uploadedToolsImages.length)
         : assembleWbCardPrompt(uploadedToolsImages.length));
     } else if (currentToolsTool === 'enhancer') {
@@ -13353,8 +13505,8 @@ const PERSISTED_SELECTS = [
   'kling3MotionOrientation', 'kling3KeepOriginalSound',
   'toolsHeygenOutputLanguage',
   'aspectRatioBase', 'toolsOutputFormat',
-  'kieEditModel', 'kieEditResolution', 'kieEditAspectRatio', 'kieEditOutputFormat',
-  'kieCreateModel', 'kieCreateResolution', 'kieCreateAspectRatio', 'kieCreateOutputFormat',
+  'kieEditModel', 'kieEditResolution', 'kieEditAspectRatio', 'kieEditOutputFormat', 'kieEditQuality',
+  'kieCreateModel', 'kieCreateResolution', 'kieCreateAspectRatio', 'kieCreateOutputFormat', 'kieCreateQuality',
   'toolsModel', 'toolsResolution', 'toolsAspectRatio', 'toolsWebSearch', 'toolsGoogleSearch',
   'toolsGptImageSize', 'toolsGptQuality', 'toolsGptOutputFormat', 'toolsGptBackground', 'toolsGptFidelity',
   'toolsEnhancerModel', 'toolsEnhancerOutputFormat', 'toolsEnhancerSubjectDetection', 'toolsEnhancerCreativity', 'toolsEnhancerTexture',
@@ -13371,6 +13523,7 @@ const PERSISTED_INPUTS = [
   'nano2Seed', 'editNano2Seed',
   'gptImageWidth', 'gptImageHeight', 'editImageWidth', 'editImageHeight',
   'toolsTitleInput', 'toolsFontInput', 'toolsWishesInput', 'toolsSeed', 'toolsGptImageWidth', 'toolsGptImageHeight',
+  'toolsAspectRatioCustom', 'kieEditAspectRatioCustom', 'kieCreateAspectRatioCustom',
   'toolsEnhancerUpscaleFactor', 'toolsEnhancerFaceStrength', 'toolsEnhancerFaceCreativity',
   'toolsEnhancerSharpen', 'toolsEnhancerDenoise', 'toolsEnhancerFixCompression',
   'toolsEnhancerStrength', 'toolsEnhancerDetail', 'toolsEnhancerPrompt',
@@ -13499,6 +13652,11 @@ function applyPendingPersistedControls() {
     if (!el) return;
     writePersistableControlValue(el, pending[id]);
   });
+  if (typeof updateAspectCustomInput === 'function') {
+    updateAspectCustomInput('toolsAspectRatio', 'toolsAspectRatioCustom');
+    updateAspectCustomInput('kieEditAspectRatio', 'kieEditAspectRatioCustom');
+    updateAspectCustomInput('kieCreateAspectRatio', 'kieCreateAspectRatioCustom');
+  }
 }
 
 function queueApplyPendingPersistedControls() {
@@ -14367,4 +14525,3 @@ window.scheduleVideoRestoreWatchdog = scheduleVideoRestoreWatchdog;
 hookNewsLocaleUpdates();
 if (window.I18N) window.I18N.init();
 refreshModelNews(true);
-

@@ -10,7 +10,26 @@
     <link rel="icon" href="data:,">
 </head>
 
-<body>
+<body class="site-locked">
+    <div class="site-auth-gate" id="siteAuthGate" role="dialog" aria-modal="true" aria-labelledby="siteAuthTitle">
+        <form class="site-auth-card" id="siteAuthForm">
+            <div class="site-auth-mark"><i data-lucide="lock-keyhole"></i></div>
+            <div>
+                <p class="site-auth-kicker">Private studio</p>
+                <h1 id="siteAuthTitle">Enter password</h1>
+                <p class="site-auth-copy">We will trust this device after the first successful login.</p>
+            </div>
+            <label class="site-auth-field">
+                <span>Password</span>
+                <input id="siteAuthPassword" type="password" autocomplete="current-password" required>
+            </label>
+            <button class="site-auth-submit" type="submit">
+                <i data-lucide="arrow-right"></i>
+                <span>Continue</span>
+            </button>
+            <p class="site-auth-error" id="siteAuthError" role="alert"></p>
+        </form>
+    </div>
     <div class="app-layout">
         <!-- Header -->
         <header class="app-header">
@@ -1025,14 +1044,15 @@
                                                 <option value="1:1">1:1</option>
                                                 <option value="9:16">9:16</option>
                                                 <option value="16:9">16:9</option>
+                                                <option value="custom">Custom</option>
                                             </select>
+                                            <input type="text" id="toolsAspectRatioCustom" class="aspect-custom-input" placeholder="e.g. 21:9 or 1200:1600" style="display:none;margin-top:0.45rem;">
                                         </div>
                                         <div class="field" id="toolsFieldOutputFormat">
                                             <label>Output</label>
                                             <select id="toolsOutputFormat">
                                                 <option value="png" selected>PNG</option>
                                                 <option value="jpeg">JPEG</option>
-                                                <option value="webp">WebP</option>
                                             </select>
                                         </div>
                                         <div class="field" id="toolsFieldWebSearch">
@@ -1630,14 +1650,23 @@
                                     <option value="1:1">1:1</option>
                                     <option value="9:16">9:16</option>
                                     <option value="16:9">16:9</option>
+                                    <option value="custom">Custom</option>
                                 </select>
+                                <input type="text" id="kieEditAspectRatioCustom" class="aspect-custom-input" placeholder="e.g. 21:9 or 1200:1600" style="display:none;margin-top:0.45rem;">
                             </div>
                             <div class="field">
                                 <label>Output</label>
                                 <select id="kieEditOutputFormat">
                                     <option value="png" selected>PNG</option>
                                     <option value="jpeg">JPEG</option>
-                                    <option value="webp">WebP</option>
+                                </select>
+                            </div>
+                            <div class="field" id="kieEditFieldQuality" style="display:none;">
+                                <label>Quality</label>
+                                <select id="kieEditQuality">
+                                    <option value="high" selected>High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
                                 </select>
                             </div>
                         </div>
@@ -1679,13 +1708,23 @@
                                     <option value="4:3">4:3</option>
                                     <option value="9:16">9:16</option>
                                     <option value="16:9">16:9</option>
+                                    <option value="custom">Custom</option>
                                 </select>
+                                <input type="text" id="kieCreateAspectRatioCustom" class="aspect-custom-input" placeholder="e.g. 21:9 or 1200:1600" style="display:none;margin-top:0.45rem;">
                             </div>
                             <div class="field" id="kieCreateFieldOutputFormat">
                                 <label>Output</label>
                                 <select id="kieCreateOutputFormat">
                                     <option value="png" selected>PNG</option>
                                     <option value="jpeg">JPEG</option>
+                                </select>
+                            </div>
+                            <div class="field" id="kieCreateFieldQuality" style="display:none;">
+                                <label>Quality</label>
+                                <select id="kieCreateQuality">
+                                    <option value="high" selected>High</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="low">Low</option>
                                 </select>
                             </div>
                         </div>
