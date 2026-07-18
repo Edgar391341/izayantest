@@ -2569,6 +2569,103 @@ async function uploadToFal(fileBuffer, fileName, mimeType) {
     return uploadBufferToFal(fileBuffer, fileName, mimeType);
 }
 
+function isKnownGeneratedImageHost(urlValue) {
+    try {
+        const host = new URL(String(urlValue || '')).hostname.toLowerCase();
+        return host === 'fal.media'
+            || host.endsWith('.fal.media')
+            || host === 'aiquickdraw.com'
+            || host.endsWith('.aiquickdraw.com')
+            || host === 'kie.ai'
+            || host.endsWith('.kie.ai');
+    } catch {
+        return false;
+    }
+}
+
+function extensionForImageMime(mimeType, sourceUrl) {
+    const mime = String(mimeType || '').toLowerCase();
+    if (mime.includes('png')) return 'png';
+    if (mime.includes('webp')) return 'webp';
+    if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+    try {
+        const match = new URL(String(sourceUrl || '')).pathname.match(/\.(png|webp|jpe?g)$/i);
+        if (match) return match[1].toLowerCase().replace('jpeg', 'jpg');
+    } catch {}
+    return 'jpg';
+}
+
+async function mirrorGeneratedImageToKie(sourceUrl) {
+    const value = String(sourceUrl || '').trim();
+    if (!value || !isKnownGeneratedImageHost(value)) return value;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    let sourceResponse;
+    try {
+        sourceResponse = await fetch(value, { signal: controller.signal });
+    } catch {
+        throw new Error('Исходное фото больше недоступно. Выберите или загрузите его заново.');
+    } finally {
+        clearTimeout(timer);
+    }
+    if (!sourceResponse.ok) {
+        throw new Error('Исходное фото больше недоступно. Выберите или загрузите его заново.');
+    }
+
+    const declaredMime = String(sourceResponse.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const ext = extensionForImageMime(declaredMime, value);
+    const mimeType = declaredMime.startsWith('image/')
+        ? declaredMime
+        : (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
+    if (!declaredMime.startsWith('image/') && !/\.(png|webp|jpe?g)(?:$|[?#])/i.test(value)) {
+        throw new Error('Для Grok нужно выбрать изображение JPEG, PNG или WEBP.');
+    }
+    const declaredLength = Number(sourceResponse.headers.get('content-length') || 0);
+    if (Number.isFinite(declaredLength) && declaredLength > 10 * 1024 * 1024) {
+        throw new Error('Фото для Grok должно быть меньше 10 МБ.');
+    }
+    const sourceBuffer = Buffer.from(await sourceResponse.arrayBuffer());
+    if (!sourceBuffer.length || sourceBuffer.length > 10 * 1024 * 1024) {
+        throw new Error('Фото для Grok должно быть меньше 10 МБ.');
+    }
+
+    const uploadResponse = await fetch('https://kieai.redpandaai.co/api/file-base64-upload', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${KIE_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            base64Data: `data:${mimeType};base64,${sourceBuffer.toString('base64')}`,
+            uploadPath: 'images/grok-video',
+            fileName: `grok-video-${Date.now()}.${ext}`,
+        }),
+    });
+    const uploadData = await uploadResponse.json().catch(() => null);
+    const uploadedUrl = uploadData && uploadData.data
+        && (uploadData.data.downloadUrl || uploadData.data.fileUrl || uploadData.data.url);
+    if (!uploadResponse.ok || !uploadedUrl) {
+        // The original URL is still public, so let Grok try it if its uploader is unavailable.
+        return value;
+    }
+    return uploadedUrl;
+}
+
+function normalizeGrokPrompt(prompt, hasExternalImage) {
+    let clean = String(prompt || '').trim().replace(/^\/+\s*/, '');
+    if (!clean) clean = hasExternalImage ? 'Create a natural, high-quality video from this image.' : 'Create a high-quality video.';
+
+    const imageRef = hasExternalImage && !/@image\d+\b/i.test(clean) ? '@image1 ' : '';
+    const hasCyrillic = /[\u0400-\u04ff]/.test(clean);
+    const languageGuide = hasCyrillic
+        ? (hasExternalImage
+            ? 'Create a polished advertising video from this image with natural motion. Follow the user request: '
+            : 'Create a polished video with natural motion. Follow the user request: ')
+        : '';
+    return `${imageRef}${languageGuide}${clean}`.slice(0, 5000);
+}
+
 function getKieVideoModelId(modelId) {
     const id = String(modelId || '').trim();
     if (id === 'grok-imagine-t2v') return 'grok-imagine/text-to-video';
@@ -2632,6 +2729,7 @@ function mapPayloadToKieVideoInput(localModelId, selectedModel, payload) {
             delete input.image_url;
             delete input.start_image_url;
         }
+        input.prompt = normalizeGrokPrompt(input.prompt, id === 'grok-imagine-i2v' && Array.isArray(input.image_urls) && input.image_urls.length > 0);
     }
 
     if (id.includes('kling-v2.6')) {
@@ -3228,6 +3326,9 @@ module.exports = async function handler(req, res) {
         }
 
         if (kieVideoModelId && KIE_API_KEY) {
+            if (model_id === 'grok-imagine-i2v' && payload.image_url) {
+                payload.image_url = await mirrorGeneratedImageToKie(payload.image_url);
+            }
             const kieResult = await submitKieVideoTask(model_id, selectedModel, payload);
             if (kieResult) {
                 return res.status(200).json(kieResult);

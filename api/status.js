@@ -129,7 +129,10 @@ function normalizeKieTaskRecord(data) {
     if (state === 'fail' || state === 'failed') {
         const resultError = extractDetailMessage(result);
         const topLevelMessage = typeof data.msg === 'string' && !/^success$/i.test(data.msg.trim()) ? data.msg.trim() : '';
-        const failureMessage = record.failMsg || resultError || topLevelMessage || 'KIE generation failed';
+        let failureMessage = record.failMsg || resultError || topLevelMessage || 'KIE generation failed';
+        if (/^generation failed$/i.test(failureMessage) && /grok-imagine/i.test(String(record.model || ''))) {
+            failureMessage = 'Grok временно не смог обработать запрос. Выберите фото заново и запускайте только одно видео за раз.';
+        }
         return {
             status: 'FAILED',
             provider: 'kie',

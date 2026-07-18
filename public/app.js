@@ -13039,6 +13039,13 @@ function captureGenerationContext() {
 
 async function handleGenerate() {
   const activeCount = getActiveTaskCount();
+  const hasActiveGrokVideo = currentMode === 'video' && tasks.some((task) => task
+    && task.mode === 'video'
+    && (task.status === 'SUBMITTING' || task.status === 'RUNNING'));
+  if (hasActiveGrokVideo) {
+    showToast('Дождитесь завершения текущего Grok-видео перед следующим запуском.', 'error');
+    return;
+  }
   if (activeCount >= MAX_CONCURRENT_TASKS) {
     showToast((window.I18N ? I18N.t('toast_max_tasks') : 'Maximum {n} generations at once. Please wait.').replace('{n}', MAX_CONCURRENT_TASKS), 'error');
     return;
