@@ -2595,6 +2595,41 @@ function extensionForImageMime(mimeType, sourceUrl) {
     return 'jpg';
 }
 
+async function uploadImageBufferToKie(sourceBuffer, mimeType, ext) {
+    const uploadResponse = await fetch('https://kieai.redpandaai.co/api/file-base64-upload', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${KIE_API_KEY}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            base64Data: `data:${mimeType};base64,${sourceBuffer.toString('base64')}`,
+            uploadPath: 'images/grok-video',
+            fileName: `grok-video-${Date.now()}.${ext}`,
+        }),
+    });
+    const uploadData = await uploadResponse.json().catch(() => null);
+    const uploadedUrl = uploadData && uploadData.data
+        && (uploadData.data.downloadUrl || uploadData.data.fileUrl || uploadData.data.url);
+    return uploadResponse.ok && uploadedUrl ? uploadedUrl : null;
+}
+
+async function prepareGrokImageForKie(sourceValue) {
+    const value = String(sourceValue || '').trim();
+    const dataMatch = /^data:(image\/(?:png|jpe?g|webp));base64,([a-z0-9+/=\r\n]+)$/i.exec(value);
+    if (!dataMatch) return mirrorGeneratedImageToKie(value);
+
+    const mimeType = dataMatch[1].toLowerCase().replace('image/jpg', 'image/jpeg');
+    const sourceBuffer = Buffer.from(dataMatch[2], 'base64');
+    if (!sourceBuffer.length || sourceBuffer.length > 10 * 1024 * 1024) {
+        throw new Error('Фото для Grok должно быть меньше 10 МБ.');
+    }
+    const ext = extensionForImageMime(mimeType, '');
+    const uploadedUrl = await uploadImageBufferToKie(sourceBuffer, mimeType, ext);
+    if (!uploadedUrl) throw new Error('Не удалось загрузить фото в Grok. Повторите попытку.');
+    return uploadedUrl;
+}
+
 async function mirrorGeneratedImageToKie(sourceUrl) {
     const value = String(sourceUrl || '').trim();
     if (!value || !isKnownGeneratedImageHost(value)) return value;
@@ -2630,22 +2665,8 @@ async function mirrorGeneratedImageToKie(sourceUrl) {
         throw new Error('Фото для Grok должно быть меньше 10 МБ.');
     }
 
-    const uploadResponse = await fetch('https://kieai.redpandaai.co/api/file-base64-upload', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${KIE_API_KEY}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            base64Data: `data:${mimeType};base64,${sourceBuffer.toString('base64')}`,
-            uploadPath: 'images/grok-video',
-            fileName: `grok-video-${Date.now()}.${ext}`,
-        }),
-    });
-    const uploadData = await uploadResponse.json().catch(() => null);
-    const uploadedUrl = uploadData && uploadData.data
-        && (uploadData.data.downloadUrl || uploadData.data.fileUrl || uploadData.data.url);
-    if (!uploadResponse.ok || !uploadedUrl) {
+    const uploadedUrl = await uploadImageBufferToKie(sourceBuffer, mimeType, ext);
+    if (!uploadedUrl) {
         // The original URL is still public, so let Grok try it if its uploader is unavailable.
         return value;
     }
@@ -3327,7 +3348,7 @@ module.exports = async function handler(req, res) {
 
         if (kieVideoModelId && KIE_API_KEY) {
             if (model_id === 'grok-imagine-i2v' && payload.image_url) {
-                payload.image_url = await mirrorGeneratedImageToKie(payload.image_url);
+                payload.image_url = await prepareGrokImageForKie(payload.image_url);
             }
             const kieResult = await submitKieVideoTask(model_id, selectedModel, payload);
             if (kieResult) {

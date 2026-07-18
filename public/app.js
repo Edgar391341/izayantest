@@ -12020,8 +12020,8 @@ const VIDEO_IMAGE_UPLOAD_FOLDERS = new Set([
   'video-end-image',
 ]);
 const VIDEO_IMAGE_UPLOAD_MAX_EDGE_PX = 2048;
-const VIDEO_IMAGE_UPLOAD_MAX_BYTES = 6 * 1024 * 1024;
-const VIDEO_IMAGE_UPLOAD_LARGE_BYTES = 4 * 1024 * 1024;
+const VIDEO_IMAGE_UPLOAD_MAX_BYTES = 2.5 * 1024 * 1024;
+const VIDEO_IMAGE_UPLOAD_LARGE_BYTES = 2.5 * 1024 * 1024;
 
 function shouldOptimizeVideoUploadImage(file, folder) {
   if (!file || !(file instanceof Blob)) return false;
@@ -12193,7 +12193,7 @@ async function optimizeImageForVideoUpload(file, folder) {
     );
 
     // Only replace when we materially improve upload cost or dimensions.
-    if (optimizedFile.size >= file.size * 0.97 && !needsResize) return file;
+    if (optimizedFile.size >= file.size * 0.97 && !needsResize && file.size <= VIDEO_IMAGE_UPLOAD_MAX_BYTES) return file;
     return optimizedFile;
   } catch (error) {
     console.warn('Video upload image optimization skipped:', error);
@@ -12300,6 +12300,32 @@ async function resolveUploadItemKieInput(item, folder, task) {
   }
   const file = await ensureFileLikeAssetItem(item);
   return readFileAsDataUri(file);
+}
+
+async function resolveGrokVideoImageInput(item, task) {
+  if (!item) return null;
+  markTaskActivity(task);
+  if (typeof item === 'string') {
+    const value = item.trim();
+    if (!value) return null;
+    if (/^data:image\//i.test(value)) {
+      if (value.length > 3.6 * 1024 * 1024) {
+        throw new Error('Фото слишком большое. Выберите изображение размером до 2,5 МБ.');
+      }
+      return value;
+    }
+    if (isDirectRemoteUrl(value) && canPassThroughRemoteUrl(value)) return value;
+  }
+  if (isRemoteAssetItem(item) && canPassThroughRemoteUrl(item.url)) return item.url || null;
+
+  const file = typeof item === 'string'
+    ? await fetchUrlAsFile(item, { type: 'image' })
+    : await ensureFileLikeAssetItem(item);
+  const prepared = await optimizeImageForVideoUpload(file, 'video-image');
+  if (prepared && Number(prepared.size) > VIDEO_IMAGE_UPLOAD_MAX_BYTES) {
+    throw new Error('Фото слишком большое. Выберите изображение размером до 2,5 МБ.');
+  }
+  return readFileAsDataUri(prepared);
 }
 
 async function resolveUploadItemKieInputs(items, folder, task, limit = Infinity) {
@@ -12694,7 +12720,9 @@ async function submitVideoRequest(task) {
   }
 
   if (!isSeedance2ReferenceModel && videoImageSource) {
-    const iu = await resolveUploadItemUrl(videoImageSource, 'video-image', task);
+    const iu = modelId === 'grok-imagine-i2v'
+      ? await resolveGrokVideoImageInput(videoImageSource, task)
+      : await resolveUploadItemUrl(videoImageSource, 'video-image', task);
     if (iu) body.image_url = iu;
   }
   if (
