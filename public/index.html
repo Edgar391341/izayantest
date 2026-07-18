@@ -1768,8 +1768,9 @@
                 <div class="preview-toolbar">
                     <div id="generationsPanel" class="task-status"></div>
                     <div class="preview-actions">
-                        <button id="downloadBtn" class="action-btn" style="display:none;" type="button">
+                        <button id="downloadBtn" class="action-btn action-btn--download" style="display:none;" type="button" title="Скачать результат">
                             <i data-lucide="download"></i>
+                            <span id="downloadBtnLabel" class="action-btn-label">Скачать</span>
                         </button>
                         <button id="editImageBtn" class="action-btn action-btn--edit" style="display:none;" type="button" onclick="editCurrentImage()" data-i18n-title="btn_edit_image" title="Edit Image">
                             <i data-lucide="wand-2"></i>
@@ -1791,7 +1792,7 @@
                         <span id="timer">0.0s</span>
                     </div>
                     <img id="resultImage">
-                    <video id="resultVideo" controls loop></video>
+                    <video id="resultVideo" controls playsinline preload="metadata" loop></video>
                     <div id="resultAudioPane" class="result-audio-pane"></div>
                     <model-viewer id="resultModel" camera-controls auto-rotate rotation-per-second="20deg" shadow-intensity="1" exposure="1.2" environment-image="neutral" tone-mapping="commerce" loading="eager" alt="3D model"></model-viewer>
                 </div>

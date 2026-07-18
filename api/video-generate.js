@@ -1157,15 +1157,37 @@ const OPTION_DEFS = {
         "default": 6,
         "label": "Duration (sec)"
     },
+    "mode_grok_t2v": {
+        "type": "select",
+        "values": [
+            "normal",
+            "fun",
+            "spicy"
+        ],
+        "default": "normal",
+        "label": "Mode"
+    },
+    "mode_grok_i2v": {
+        "type": "select",
+        "values": [
+            "normal",
+            "fun"
+        ],
+        "default": "normal",
+        "label": "Mode"
+    },
+    "nsfw_checker_grok": {
+        "type": "bool",
+        "default": true,
+        "label": "Safety checker"
+    },
     "aspect_ratio_grok": {
         "type": "select",
         "values": [
             "16:9",
-            "4:3",
             "3:2",
             "1:1",
             "2:3",
-            "3:4",
             "9:16"
         ],
         "default": "16:9",
@@ -1174,19 +1196,14 @@ const OPTION_DEFS = {
     "aspect_ratio_grok_i2v": {
         "type": "select",
         "values": [
-            "auto",
             "16:9",
-            "4:3",
             "3:2",
             "1:1",
             "2:3",
-            "3:4",
             "9:16"
         ],
-        "default": null,
-        "label": "Aspect Ratio",
-        "allowEmpty": true,
-        "emptyLabel": "Default"
+        "default": "16:9",
+        "label": "Aspect Ratio"
     },
     "resolution_grok": {
         "type": "select",
@@ -1376,6 +1393,9 @@ const OPTION_KEY_ALIASES = {
     "resolution_hailuo_i2v": "resolution",
     "duration_hailuo": "duration",
     "duration_grok": "duration",
+    "mode_grok_t2v": "mode",
+    "mode_grok_i2v": "mode",
+    "nsfw_checker_grok": "nsfw_checker",
     "aspect_ratio_grok": "aspect_ratio",
     "aspect_ratio_grok_i2v": "aspect_ratio",
     "resolution_grok": "resolution",
@@ -1688,7 +1708,9 @@ const VIDEO_MODELS = {
         "allowedOptions": [
             "duration_grok",
             "aspect_ratio_grok",
-            "resolution_grok"
+            "resolution_grok",
+            "mode_grok_t2v",
+            "nsfw_checker_grok"
         ],
         "optionTypes": {
             "duration_grok": "number"
@@ -2041,7 +2063,9 @@ const VIDEO_MODELS = {
         "allowedOptions": [
             "duration_grok",
             "aspect_ratio_grok_i2v",
-            "resolution_grok"
+            "resolution_grok",
+            "mode_grok_i2v",
+            "nsfw_checker_grok"
         ],
         "optionTypes": {
             "duration_grok": "number"
@@ -2527,8 +2551,8 @@ async function uploadToFal(fileBuffer, fileName, mimeType) {
 
 function getKieVideoModelId(modelId) {
     const id = String(modelId || '').trim();
-    if (id === 'grok-imagine-t2v') return 'grok-imagine-text-to-video';
-    if (id === 'grok-imagine-i2v') return 'grok-imagine-image-to-video';
+    if (id === 'grok-imagine-t2v') return 'grok-imagine/text-to-video';
+    if (id === 'grok-imagine-i2v') return 'grok-imagine/image-to-video';
     if (id === 'seedance-2.0-pro-t2v' || id === 'seedance-2.0-pro-i2v' || id === 'seedance-2.0-pro-ref2v') return 'bytedance-seedance-2';
     if (id === 'seedance-2.0-fast-t2v' || id === 'seedance-2.0-fast-i2v' || id === 'seedance-2.0-fast-ref2v') return 'bytedance-seedance-2-fast';
     if (id === 'kling-v2.6-pro-t2v') return 'kling-2.6/text-to-video';
@@ -2556,6 +2580,7 @@ function mapPayloadToKieVideoInput(localModelId, selectedModel, payload) {
     addDefined(input, 'duration', payload.duration);
     addDefined(input, 'aspect_ratio', normalizeKieAspectRatio(payload.aspect_ratio));
     addDefined(input, 'resolution', payload.resolution);
+    addDefined(input, 'mode', payload.mode);
     addDefined(input, 'seed', payload.seed);
     addDefined(input, 'image_url', payload.image_url || payload.start_image_url);
     addDefined(input, 'start_image_url', payload.start_image_url);
@@ -2580,6 +2605,14 @@ function mapPayloadToKieVideoInput(localModelId, selectedModel, payload) {
     if (id.includes('grok-imagine')) {
         input.resolution = input.resolution || '720p';
         input.duration = Number(input.duration || 6);
+        input.mode = input.mode || 'normal';
+        if (id === 'grok-imagine-i2v' && input.mode === 'spicy') input.mode = 'normal';
+        input.nsfw_checker = payload.nsfw_checker !== false;
+        if (id === 'grok-imagine-i2v' && input.image_url) {
+            input.image_urls = [input.image_url];
+            delete input.image_url;
+            delete input.start_image_url;
+        }
     }
 
     if (id.includes('kling-v2.6')) {
@@ -2650,7 +2683,7 @@ module.exports = async function handler(req, res) {
     // GET = return models list (was video-models.js)
     if (req.method === 'GET') {
         try {
-            const models = Object.entries(VIDEO_MODELS).map(([id, m]) => ({
+            const models = Object.entries(VIDEO_MODELS).filter(([id]) => id === 'grok-imagine-t2v' || id === 'grok-imagine-i2v').map(([id, m]) => ({
                 id,
                 label: m && m.label ? m.label : id,
                 kind: m && m.kind ? m.kind : null,
@@ -2808,14 +2841,16 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        const selectedModel = VIDEO_MODELS[model_id] || VIDEO_MODELS['kling-o1-v2v-reference'];
-        const supportsReferenceVideos = !!selectedModel.supportsVideoUrls;
-        const supportsReferenceAudios = !!selectedModel.supportsAudioUrls;
-        const isSeedanceReferenceModel = selectedModel.kind === 'reference-to-video' && (supportsReferenceVideos || supportsReferenceAudios);
-
+        const selectedModel = VIDEO_MODELS[model_id];
         if (!selectedModel) {
             return res.status(400).json({ error: 'Unknown model_id' });
         }
+        if (model_id !== 'grok-imagine-t2v' && model_id !== 'grok-imagine-i2v') {
+            return res.status(400).json({ error: 'Only Grok Imagine video models are available' });
+        }
+        const supportsReferenceVideos = !!selectedModel.supportsVideoUrls;
+        const supportsReferenceAudios = !!selectedModel.supportsAudioUrls;
+        const isSeedanceReferenceModel = selectedModel.kind === 'reference-to-video' && (supportsReferenceVideos || supportsReferenceAudios);
 
         const kieVideoModelId = getKieVideoModelId(model_id);
         if (!FAL_API_KEY && !kieVideoModelId && (!getGoogleVideoModelId(model_id) || !hasGoogleApiKey())) {

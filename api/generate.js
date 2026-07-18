@@ -144,6 +144,8 @@ function getKieImageModelId(modelId) {
     if (id === 'nano-banana-pro' || id === 'nano-banana-pro/edit' || id === 'kie/nano-banana-pro') return 'nano-banana-pro';
     if (id === 'gpt-image-2-text-to-image') return 'gpt-image-2-text-to-image';
     if (id === 'gpt-image-2-image-to-image') return 'gpt-image-2-image-to-image';
+    if (id === 'seedream/5-pro-text-to-image') return 'seedream/5-pro-text-to-image';
+    if (id === 'seedream/5-pro-image-to-image') return 'seedream/5-pro-image-to-image';
     return null;
 }
 
@@ -160,6 +162,7 @@ async function submitKieImageTask(body) {
     if (!prompt) throw new Error('Prompt is required');
 
     const isGpt2 = isGptImage2KieModel(kieModel);
+    const isSeedream5 = kieModel === 'seedream/5-pro-text-to-image' || kieModel === 'seedream/5-pro-image-to-image';
     const imageInput = await normalizeKieImageInputs(body.image_urls || body.image_input || []);
     const input = {
         prompt,
@@ -168,6 +171,18 @@ async function submitKieImageTask(body) {
     if (isGpt2) {
         if (imageInput.length > 0) input.input_urls = imageInput;
         input.aspect_ratio = body.aspect_ratio || 'auto';
+    } else if (isSeedream5) {
+        if (kieModel === 'seedream/5-pro-image-to-image') {
+            if (!imageInput.length) throw new Error('At least one source image is required');
+            input.image_urls = imageInput.slice(0, 10);
+        }
+        input.aspect_ratio = body.aspect_ratio || '1:1';
+        input.quality = String(body.quality || '').toLowerCase() === 'high' || String(body.resolution || '').toUpperCase() === '2K'
+            ? 'high'
+            : 'basic';
+        const outputFormat = String(body.output_format || 'png').toLowerCase();
+        input.output_format = outputFormat === 'jpeg' ? 'jpeg' : 'png';
+        input.nsfw_checker = body.nsfw_checker !== false;
     } else {
         input.image_input = imageInput;
         input.aspect_ratio = body.aspect_ratio || 'auto';

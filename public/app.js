@@ -810,8 +810,25 @@ const DEFAULT_IMAGE_EDIT_MODEL = 'nano-banana-pro/edit';
 const DEFAULT_TOOLS_MODEL = 'nano-banana-2';
 const DEFAULT_KIE_EDIT_MODEL = 'nano-banana-2';
 const DEFAULT_3D_MODEL = 'fal-ai/meshy/v6-preview/image-to-3d';
+const SEEDREAM_5_TEXT_MODEL_ID = 'seedream/5-pro-text-to-image';
+const SEEDREAM_5_EDIT_MODEL_ID = 'seedream/5-pro-image-to-image';
+const SEEDREAM_5_ASPECT_OPTIONS = [
+  { value: '1:1', label: '1:1' },
+  { value: '4:3', label: '4:3' },
+  { value: '3:4', label: '3:4' },
+  { value: '16:9', label: '16:9' },
+  { value: '9:16', label: '9:16' },
+  { value: '2:3', label: '2:3' },
+  { value: '3:2', label: '3:2' },
+  { value: '21:9', label: '21:9' },
+];
+const SEEDREAM_5_RESOLUTION_OPTIONS = [
+  { value: '1K', label: 'Basic · 1K' },
+  { value: '2K', label: 'High · 2K' },
+];
 
 const IMAGE_MODELS_TEXT = [
+  { id: SEEDREAM_5_TEXT_MODEL_ID, label: 'Seedream 5.0 Pro' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
   { id: 'nano-banana-2', label: 'Nano Banana 2' },
   { id: GPT_IMAGE_2_TEXT_MODEL_ID, label: 'GPT Image 2' },
@@ -820,6 +837,7 @@ const IMAGE_MODELS_TEXT = [
 ];
 
 const EDIT_MAX_IMAGES = {
+  [SEEDREAM_5_EDIT_MODEL_ID]: 10,
   'nano-banana-2/edit': 14,
   'nano-banana-pro/edit': 14,
   [GPT_IMAGE_2_EDIT_MODEL_ID]: 4,
@@ -832,12 +850,14 @@ function editMaxImages() {
 }
 
 const IMAGE_MODELS_EDIT = [
+  { id: SEEDREAM_5_EDIT_MODEL_ID, label: 'Seedream 5.0 Pro (Edit)' },
   { id: 'nano-banana-pro/edit', label: 'Nano Banana Pro (Edit)' },
   { id: 'nano-banana-2/edit', label: 'Nano Banana 2 (Edit)' },
   { id: GPT_IMAGE_2_EDIT_MODEL_ID, label: 'GPT Image 2 (Edit)' },
   { id: 'gpt-image-1.5/edit', label: 'GPT-Image 1.5 (Edit)' },
 ];
 const TOOLS_MODELS = [
+  { id: SEEDREAM_5_EDIT_MODEL_ID, label: 'Seedream 5.0 Pro' },
   { id: 'nano-banana-2', label: 'Nano Banana 2 (KIE)' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro (KIE)' },
   { id: KIE_GPT_IMAGE_2_EDIT_MODEL_ID, label: 'GPT Image 2 (KIE Edit)' },
@@ -845,18 +865,28 @@ const TOOLS_MODELS = [
 TOOLS_TOOL_MODEL_IDS['card-studio'] = DEFAULT_TOOLS_MODEL;
 
 const KIE_EDIT_MODELS = [
+  { id: SEEDREAM_5_EDIT_MODEL_ID, label: 'Seedream 5.0 Pro' },
   { id: 'nano-banana-2', label: 'Nano Banana 2' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
   { id: KIE_GPT_IMAGE_2_EDIT_MODEL_ID, label: 'GPT Image 2 (Edit)' },
 ];
 
 const KIE_CREATE_MODELS = [
+  { id: SEEDREAM_5_TEXT_MODEL_ID, label: 'Seedream 5.0 Pro' },
   { id: 'nano-banana-2', label: 'Nano Banana 2' },
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
   { id: KIE_GPT_IMAGE_2_TEXT_MODEL_ID, label: 'GPT Image 2' },
 ];
 
 const KIE_PRICING = {
+  [SEEDREAM_5_TEXT_MODEL_ID]: {
+    '1K': { credits: 7, usd: 0.035, effectiveUsd: 0.0315 },
+    '2K': { credits: 14, usd: 0.07, effectiveUsd: 0.063 },
+  },
+  [SEEDREAM_5_EDIT_MODEL_ID]: {
+    '1K': { credits: 7, usd: 0.035, effectiveUsd: 0.0315 },
+    '2K': { credits: 14, usd: 0.07, effectiveUsd: 0.063 },
+  },
   'nano-banana-2': {
     '1K': { credits: 8, usd: 0.04, effectiveUsd: 0.036 },
     '2K': { credits: 12, usd: 0.06, effectiveUsd: 0.054 },
@@ -3667,6 +3697,10 @@ async function loadVideoModels() {
       }));
       VIDEO_MODEL_MAP = new Map(models.map((m) => [m.id, m]));
       VIDEO_OPTION_DEFS = (json && json.optionDefs) ? json.optionDefs : {};
+      if (!VIDEO_MODELS.some((m) => getVideoTabForModelKind(m.kind) === currentVideoTab)) {
+        currentVideoTab = 'text-to-video';
+      }
+      window._currentVideoEngine = 'grok';
       videoModelsLoaded = true;
       refreshModelNews();
     })().finally(() => {
@@ -4909,22 +4943,11 @@ function getEngineForModelId(modelId) {
 }
 
 function getCurrentVideoEngine() {
-  var sel = qs('videoModel');
-  var id = sel ? String(sel.value || '').trim() : '';
-  var fromModel = getEngineForModelId(id);
-  if (fromModel) return fromModel;
-  if (window._currentVideoEngine && VIDEO_ENGINE_MAP.has(window._currentVideoEngine)) {
-    return window._currentVideoEngine;
-  }
-  return 'kling';
+  return 'grok';
 }
 
 function isAllowedVideoModelId(id) {
-  if (!id) return false;
-  if (id.startsWith('grok-')) return true;
-  if (id.startsWith('seedance-2.0')) return true;
-  if (id.startsWith('kling-v2.6') || id.startsWith('kling-v3') || id.startsWith('kling-o3')) return true;
-  return false;
+  return !!id && id.startsWith('grok-');
 }
 function getVideoModelsForEngineMode(engine, mode) {
   if (!Array.isArray(VIDEO_MODELS)) return [];
@@ -4944,7 +4967,7 @@ function getVideoModelsForEngineMode(engine, mode) {
 }
 
 function getActiveEngines() {
-  return VIDEO_ENGINE_REGISTRY.filter(function(e) { return e.id === 'kling' || e.id === 'seedance' || e.id === 'grok'; });
+  return VIDEO_ENGINE_REGISTRY.filter(function(e) { return e.id === 'grok'; });
 }
 
 function getModesForEngine(engine) {
@@ -6078,6 +6101,7 @@ function updateTextModelOptions() {
   const isGpt = GPT_IMAGE_TEXT_MODEL_IDS.has(modelId);
   const isNano = modelId === 'nano-banana-pro';
   const isNano2 = modelId === 'nano-banana-2';
+  const isSeedream5 = modelId === SEEDREAM_5_TEXT_MODEL_ID;
 
   if (outputFormatSel) {
     replaceSelectOptions(outputFormatSel, isGpt ? GPT_TEXT_OUTPUT_FORMAT_OPTIONS : TEXT_OUTPUT_FORMAT_OPTIONS, isGpt ? 'png' : 'jpeg');
@@ -6103,6 +6127,10 @@ function updateTextModelOptions() {
     if (isNano2) animateGrid(nano2Opts);
   }
   if (aspectGroup) aspectGroup.style.display = isGpt ? 'none' : 'block';
+  if (isSeedream5 && qs('aspectRatioBase')) {
+    replaceSelectOptions(qs('aspectRatioBase'), SEEDREAM_5_ASPECT_OPTIONS, '1:1');
+  }
+  updateAllPricingUi();
 }
 
 function updateEditModelOptions() {
@@ -6132,6 +6160,7 @@ function updateEditModelOptions() {
     nano2EditOpts.style.display = isNano2 ? 'block' : 'none';
     if (isNano2) animateGrid(nano2EditOpts);
   }
+  updateAllPricingUi();
 }
 
 // Animate section entrance
@@ -6282,7 +6311,7 @@ let _wizAnimating = false;
 let _toolsInitialized = false;
 
 // Max images per model
-const WIZ_MAX_IMAGES = { ...EDIT_MAX_IMAGES, 'nano-banana-2': 14, 'nano-banana-pro': 14 };
+const WIZ_MAX_IMAGES = { ...EDIT_MAX_IMAGES, 'nano-banana-2': 14, 'nano-banana-pro': 14, [SEEDREAM_5_EDIT_MODEL_ID]: 10 };
 function wizMaxImages() {
   const m = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
   return WIZ_MAX_IMAGES[m] || WIZ_MAX_IMAGES[DEFAULT_TOOLS_MODEL] || 4;
@@ -7609,6 +7638,7 @@ window.wizQuickChar = wizQuickChar;
 // --- Model-aware settings visibility ---
 function wizUpdateToolsSettings() {
   const model = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
+  const isSeedream5 = model === SEEDREAM_5_EDIT_MODEL_ID;
   const isKieGpt2 = model === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
   const isGpt = GPT_IMAGE_EDIT_MODEL_IDS.has(model) || isKieGpt2;
 
@@ -7633,6 +7663,7 @@ function wizUpdateToolsSettings() {
   if (fSeed) fSeed.style.display = 'none';
 
   updateAspectCustomInput('toolsAspectRatio', 'toolsAspectRatioCustom');
+  syncSeedreamModelControls(isSeedream5, 'toolsResolution', 'toolsAspectRatio', 'toolsAspectRatioCustom', '3:4');
 
   updateToolsGptControls();
 
@@ -7659,6 +7690,12 @@ function getKieRequestPrice(modelId, resolution) {
 }
 
 function getImagePriceForCurrentMode() {
+  if (currentMode === 'text' && qs('imageModelText') && qs('imageModelText').value === SEEDREAM_5_TEXT_MODEL_ID) {
+    return getKieRequestPrice(SEEDREAM_5_TEXT_MODEL_ID, '2K');
+  }
+  if (currentMode === 'image' && qs('imageModelEdit') && qs('imageModelEdit').value === SEEDREAM_5_EDIT_MODEL_ID) {
+    return getKieRequestPrice(SEEDREAM_5_EDIT_MODEL_ID, '2K');
+  }
   if (currentMode === 'kie-create') {
     return getKieRequestPrice(
       qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2',
@@ -7839,7 +7876,29 @@ function renderKiePriceNote(el, modelId, resolution) {
   const price = getKieRequestPrice(modelId, resolution);
   const modelLabel = (KIE_EDIT_MODELS.concat(TOOLS_MODELS).concat(KIE_CREATE_MODELS).find((m) => m.id === modelId) || {}).label || modelId;
   const resText = ` · ${escapeHtml(resolution || '1K')}`;
-  el.innerHTML = `Цена запроса: <strong>${price.credits} credits (${formatUsd(price.usd)})</strong> · ${escapeHtml(modelLabel)}${resText}<br><span>С high-tier top-ups: примерно ${formatUsd(price.effectiveUsd)}.</span>`;
+  el.innerHTML = `Цена за запрос: <strong>${price.credits} кредитов (${formatUsd(price.usd)})</strong> · ${escapeHtml(modelLabel)}${resText}<br><span>С бонусом high-tier: около ${formatUsd(price.effectiveUsd)}.</span>`;
+}
+
+function syncSeedreamModelControls(enabled, resolutionId, aspectId, customAspectId, aspectFallback) {
+  const resolution = qs(resolutionId);
+  const aspect = qs(aspectId);
+  if (resolution && !resolution.dataset.standardOptions) resolution.dataset.standardOptions = resolution.innerHTML;
+  if (aspect && !aspect.dataset.standardOptions) aspect.dataset.standardOptions = aspect.innerHTML;
+
+  if (enabled) {
+    if (resolution) replaceSelectOptions(resolution, SEEDREAM_5_RESOLUTION_OPTIONS, '2K');
+    if (aspect) replaceSelectOptions(aspect, SEEDREAM_5_ASPECT_OPTIONS, aspectFallback || '1:1');
+  } else {
+    if (resolution && resolution.dataset.seedreamActive === 'true') resolution.innerHTML = resolution.dataset.standardOptions;
+    if (aspect && aspect.dataset.seedreamActive === 'true') aspect.innerHTML = aspect.dataset.standardOptions;
+  }
+  if (resolution) resolution.dataset.seedreamActive = enabled ? 'true' : 'false';
+  if (aspect) aspect.dataset.seedreamActive = enabled ? 'true' : 'false';
+  const custom = qs(customAspectId);
+  if (custom) {
+    custom.style.display = 'none';
+    custom.disabled = enabled || (aspect && aspect.value !== 'custom');
+  }
 }
 
 function updateKiePriceNotes() {
@@ -7864,6 +7923,8 @@ function updateKiePriceNotes() {
 function updateKieEditModelFields() {
   const modelId = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
   const isGptModel = modelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
+  const isSeedream5 = modelId === SEEDREAM_5_EDIT_MODEL_ID;
+  syncSeedreamModelControls(isSeedream5, 'kieEditResolution', 'kieEditAspectRatio', 'kieEditAspectRatioCustom', '1:1');
   const resField = qs('kieEditResolution') ? qs('kieEditResolution').closest('.field') : null;
   const fmtField = qs('kieEditOutputFormat') ? qs('kieEditOutputFormat').closest('.field') : null;
   const qualityField = qs('kieEditFieldQuality');
@@ -7875,6 +7936,8 @@ function updateKieEditModelFields() {
 function updateKieCreatePriceNote() {
   const modelId = qs('kieCreateModel') ? qs('kieCreateModel').value : 'nano-banana-2';
   const isGptModel = modelId === KIE_GPT_IMAGE_2_TEXT_MODEL_ID;
+  const isSeedream5 = modelId === SEEDREAM_5_TEXT_MODEL_ID;
+  syncSeedreamModelControls(isSeedream5, 'kieCreateResolution', 'kieCreateAspectRatio', 'kieCreateAspectRatioCustom', '1:1');
   const resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
   renderKiePriceNote(qs('kieCreatePriceNote'), modelId, resolution);
   updateGeneratePriceBadge();
@@ -9422,6 +9485,7 @@ async function submitToolsRequest(task) {
   const isGpt = GPT_IMAGE_EDIT_MODEL_IDS.has(modelId) || isKieGpt2;
   const isGpt15 = modelId === GPT_IMAGE_15_EDIT_MODEL_ID;
   const body = { model_id: modelId, prompt: task.prompt };
+  if (modelId === SEEDREAM_5_EDIT_MODEL_ID) body.nsfw_checker = true;
 
   const imageUrls = await resolveUploadItemKieInputs(uploadedToolsImages, 'tools-ref', task);
   const fontPresetSources = getFontPresetSources();
@@ -9508,6 +9572,7 @@ async function submitKieEditRequest(task) {
     image_urls: imageUrls,
     aspect_ratio: getCustomAspectRatio('kieEditAspectRatio', 'kieEditAspectRatioCustom', 'auto'),
   };
+  if (modelId === SEEDREAM_5_EDIT_MODEL_ID) body.nsfw_checker = true;
   if (isGptModel) {
     body.resolution = qs('kieEditResolution') ? qs('kieEditResolution').value : '1K';
   } else {
@@ -9530,6 +9595,7 @@ async function submitKieCreateRequest(task) {
     model_id: modelId,
     prompt: task.prompt,
   };
+  if (modelId === SEEDREAM_5_TEXT_MODEL_ID) body.nsfw_checker = true;
   if (!isGptModel) {
     body.resolution = qs('kieCreateResolution') ? qs('kieCreateResolution').value : '1K';
     body.aspect_ratio = getCustomAspectRatio('kieCreateAspectRatio', 'kieCreateAspectRatioCustom', 'auto');
@@ -11389,6 +11455,7 @@ function displayResult(item) {
   const model = qs('resultModel');
   const placeholder = qs('placeholder');
   const dl = qs('downloadBtn');
+  const dlLabel = qs('downloadBtnLabel');
 
   if (placeholder) placeholder.style.display = 'none';
   const assetBtn = qs('useAsAssetBtn');
@@ -11407,6 +11474,7 @@ function displayResult(item) {
       dl.dataset.dlUrl = item.url;
       dl.dataset.dlName = `generation-${item.timestamp || Date.now()}.mp4`;
     }
+    if (dlLabel) dlLabel.textContent = 'Скачать MP4';
   } else if (item.type === 'audio') {
     if (vid) { if (typeof vid.pause === 'function') vid.pause(); vid.style.display = 'none'; vid.removeAttribute('src'); vid.removeAttribute('poster'); }
     if (img) img.style.display = 'none';
@@ -11421,6 +11489,7 @@ function displayResult(item) {
       dl.dataset.dlUrl = item.url;
       dl.dataset.dlName = `generation-${item.timestamp || Date.now()}.${ext}`;
     }
+    if (dlLabel) dlLabel.textContent = 'Скачать аудио';
   } else if (item.type === '3d') {
     if (audioPane) { audioPane.style.display = 'none'; audioPane.innerHTML = ''; }
     if (vid) vid.style.display = 'none';
@@ -11439,6 +11508,7 @@ function displayResult(item) {
       dl.dataset.dlUrl = dlUrl;
       dl.dataset.dlName = `model-${item.timestamp || Date.now()}.${dlExt}`;
     }
+    if (dlLabel) dlLabel.textContent = 'Скачать 3D';
   } else {
     if (audioPane) { audioPane.style.display = 'none'; audioPane.innerHTML = ''; }
     if (vid) vid.style.display = 'none';
@@ -11452,6 +11522,7 @@ function displayResult(item) {
       dl.dataset.dlUrl = item.url;
       dl.dataset.dlName = `generation-${item.timestamp || Date.now()}.png`;
     }
+    if (dlLabel) dlLabel.textContent = 'Скачать PNG';
   }
 
   if (assetBtn) assetBtn.style.display = dl && dl.style.display !== 'none' ? 'inline-flex' : 'none';
@@ -12316,6 +12387,11 @@ async function submitImageRequest(task) {
       const googleSearch = qs('nano2GoogleSearch') ? qs('nano2GoogleSearch').value : '';
       if (googleSearch === 'true') body.enable_google_search = true;
     }
+
+    if (modelId === SEEDREAM_5_TEXT_MODEL_ID) {
+      body.resolution = '2K';
+      body.nsfw_checker = true;
+    }
   } else {
     // Image editing mode
     const imageUrls = await resolveUploadItemUrls(uploadedImageFiles, 'image-input', task);
@@ -12394,6 +12470,12 @@ async function submitImageRequest(task) {
 
       const aspectRatio = qs('editNano2AspectRatio') ? qs('editNano2AspectRatio').value : '';
       if (aspectRatio) body.aspect_ratio = aspectRatio;
+    }
+
+    if (modelId === SEEDREAM_5_EDIT_MODEL_ID) {
+      body.resolution = '2K';
+      body.aspect_ratio = '1:1';
+      body.nsfw_checker = true;
     }
 
     const outputFormat = qs('editOutputFormat') ? qs('editOutputFormat').value : '';
