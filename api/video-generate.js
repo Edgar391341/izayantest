@@ -1151,8 +1151,30 @@ const OPTION_DEFS = {
         "type": "select",
         "values": [
             6,
+            7,
+            8,
+            9,
             10,
-            15
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30
         ],
         "default": 6,
         "label": "Duration (sec)"
@@ -1709,8 +1731,7 @@ const VIDEO_MODELS = {
             "duration_grok",
             "aspect_ratio_grok",
             "resolution_grok",
-            "mode_grok_t2v",
-            "nsfw_checker_grok"
+            "mode_grok_t2v"
         ],
         "optionTypes": {
             "duration_grok": "number"
@@ -2064,8 +2085,7 @@ const VIDEO_MODELS = {
             "duration_grok",
             "aspect_ratio_grok_i2v",
             "resolution_grok",
-            "mode_grok_i2v",
-            "nsfw_checker_grok"
+            "mode_grok_i2v"
         ],
         "optionTypes": {
             "duration_grok": "number"
@@ -2604,10 +2624,9 @@ function mapPayloadToKieVideoInput(localModelId, selectedModel, payload) {
 
     if (id.includes('grok-imagine')) {
         input.resolution = input.resolution || '720p';
-        input.duration = Number(input.duration || 6);
+        input.duration = String(Number(input.duration || 6));
         input.mode = input.mode || 'normal';
         if (id === 'grok-imagine-i2v' && input.mode === 'spicy') input.mode = 'normal';
-        input.nsfw_checker = payload.nsfw_checker !== false;
         if (id === 'grok-imagine-i2v' && input.image_url) {
             input.image_urls = [input.image_url];
             delete input.image_url;

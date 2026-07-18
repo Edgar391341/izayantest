@@ -11839,18 +11839,8 @@ function generateImageThumbnail(imageUrl) {
 }
 
 function extractMediaUrl(data, type) {
-  if (type === 'video') {
-    return (
-      (data && data.video && data.video.url) ||
-      (Array.isArray(data && data.videos) && data.videos[0] && data.videos[0].url) ||
-      null
-    );
-  }
-  return (
-    (data && data.image && data.image.url) ||
-    (Array.isArray(data && data.images) && data.images[0] && data.images[0].url) ||
-    null
-  );
+  const urls = extractAllMediaUrls(data, type);
+  return urls.length > 0 ? urls[0] : null;
 }
 
 function extractAllMediaUrls(data, type) {
@@ -11860,8 +11850,17 @@ function extractAllMediaUrls(data, type) {
     if (!next || urls.includes(next)) return;
     urls.push(next);
   };
+  const pushList = (list) => {
+    if (!Array.isArray(list)) return;
+    for (const item of list) {
+      if (typeof item === 'string') pushUnique(item);
+      else if (item && typeof item === 'object') pushUnique(item.url || item.video_url || item.image_url);
+    }
+  };
   if (type === 'video') {
     if (data && data.video && data.video.url) pushUnique(data.video.url);
+    if (data && data.video_url) pushUnique(data.video_url);
+    if (data && data.videoUrl) pushUnique(data.videoUrl);
     if (Array.isArray(data && data.videos)) {
       for (const v of data.videos) {
         if (v && v.url) pushUnique(v.url);
@@ -11869,11 +11868,25 @@ function extractAllMediaUrls(data, type) {
     }
   } else {
     if (data && data.image && data.image.url) pushUnique(data.image.url);
+    if (data && data.image_url) pushUnique(data.image_url);
+    if (data && data.imageUrl) pushUnique(data.imageUrl);
     if (Array.isArray(data && data.images)) {
       for (const img of data.images) {
         if (img && img.url) pushUnique(img.url);
       }
     }
+  }
+  // KIE's unified task endpoint returns both image and video files in resultUrls.
+  pushList(data && data.resultUrls);
+  pushList(data && data.result_urls);
+  pushList(data && data.urls);
+  const parsedResult = data && typeof data.resultJson === 'string'
+    ? (() => { try { return JSON.parse(data.resultJson); } catch { return null; } })()
+    : (data && data.resultJson && typeof data.resultJson === 'object' ? data.resultJson : null);
+  if (parsedResult) {
+    pushList(parsedResult.resultUrls);
+    pushList(parsedResult.result_urls);
+    pushList(parsedResult.urls);
   }
   return urls;
 }
@@ -12737,9 +12750,12 @@ async function pollTask(taskId) {
     t.error = null;
 
     if (data.status === 'COMPLETED') {
-      if (!t.response_url) throw new Error('Missing response_url');
+      const expectedMediaType = (t.mode === 'video' || t.mode === 'kling3') ? 'video' : 'image';
+      const statusHasResult = extractAllMediaUrls(data, expectedMediaType).length > 0;
+      if (!statusHasResult && !t.response_url) throw new Error('Missing response_url');
 
-      const out = await fetchFalViaStatusProxy(t.response_url);
+      // KIE returns resultUrls in the status payload. Fal uses a separate response URL.
+      const out = statusHasResult ? data : await fetchFalViaStatusProxy(t.response_url);
 
       if (t.mode === '3d') {
         const o = extract3dOutput(out);
@@ -13033,7 +13049,9 @@ async function handleGenerate() {
   if (currentMode === 'tools') {
     if (currentToolsTool === 'card-studio') {
       const toolsModelId = qs('toolsModel') ? qs('toolsModel').value : DEFAULT_TOOLS_MODEL;
-      prompt = '/' + (toolsModelId === GPT_IMAGE_2_EDIT_MODEL_ID || toolsModelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID
+      prompt = '/' + (toolsModelId === GPT_IMAGE_2_EDIT_MODEL_ID
+        || toolsModelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID
+        || toolsModelId === SEEDREAM_5_EDIT_MODEL_ID
         ? assembleWbCardPromptGptImage2(uploadedToolsImages.length)
         : assembleWbCardPrompt(uploadedToolsImages.length));
     } else if (currentToolsTool === 'enhancer') {

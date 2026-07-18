@@ -106,6 +106,7 @@ function normalizeKieTaskRecord(data) {
     };
 
     if (Array.isArray(result.resultUrls)) result.resultUrls.forEach(push);
+    if (Array.isArray(result.result_urls)) result.result_urls.forEach(push);
     if (Array.isArray(result.urls)) result.urls.forEach(push);
     if (Array.isArray(result.imageUrls)) result.imageUrls.forEach(push);
     if (Array.isArray(result.images)) {
@@ -119,15 +120,22 @@ function normalizeKieTaskRecord(data) {
             provider: 'kie',
             taskId: record.taskId || null,
             images: urls.map((url) => ({ url })),
+            videos: urls.map((url) => ({ url })),
             resultUrls: urls,
+            resultJson: result,
             raw: data,
         };
     }
     if (state === 'fail' || state === 'failed') {
+        const resultError = extractDetailMessage(result);
+        const topLevelMessage = typeof data.msg === 'string' && !/^success$/i.test(data.msg.trim()) ? data.msg.trim() : '';
+        const failureMessage = record.failMsg || resultError || topLevelMessage || 'KIE generation failed';
         return {
             status: 'FAILED',
             provider: 'kie',
-            error: record.failMsg || data.msg || 'KIE generation failed',
+            error: record.failCode && !failureMessage.includes(record.failCode)
+                ? `${failureMessage} (${record.failCode})`
+                : failureMessage,
             failCode: record.failCode || '',
             raw: data,
         };

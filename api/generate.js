@@ -163,6 +163,9 @@ async function submitKieImageTask(body) {
 
     const isGpt2 = isGptImage2KieModel(kieModel);
     const isSeedream5 = kieModel === 'seedream/5-pro-text-to-image' || kieModel === 'seedream/5-pro-image-to-image';
+    if (isSeedream5 && prompt.length > 5000) {
+        throw new Error('Seedream принимает не более 5000 символов. Сократите текст в Card Studio и повторите попытку.');
+    }
     const imageInput = await normalizeKieImageInputs(body.image_urls || body.image_input || []);
     const input = {
         prompt,
