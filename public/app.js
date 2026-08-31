@@ -870,6 +870,17 @@ const KIE_EDIT_MODELS = [
   { id: 'nano-banana-pro', label: 'Nano Banana Pro' },
   { id: KIE_GPT_IMAGE_2_EDIT_MODEL_ID, label: 'GPT Image 2 (Edit)' },
 ];
+const KIE_EDIT_MAX_IMAGES = {
+  [SEEDREAM_5_EDIT_MODEL_ID]: 10,
+  'nano-banana-2': 10,
+  'nano-banana-pro': 10,
+  [KIE_GPT_IMAGE_2_EDIT_MODEL_ID]: 10,
+};
+function kieEditMaxImages() {
+  const sel = qs('kieEditModel');
+  const id = sel ? sel.value : DEFAULT_KIE_EDIT_MODEL;
+  return KIE_EDIT_MAX_IMAGES[id] || KIE_EDIT_MAX_IMAGES[DEFAULT_KIE_EDIT_MODEL] || 10;
+}
 
 const KIE_CREATE_MODELS = [
   { id: SEEDREAM_5_TEXT_MODEL_ID, label: 'Seedream 5.0 Pro' },
@@ -7957,32 +7968,95 @@ function updateKieCreatePriceNote() {
   }
 }
 
-function setKieEditSource(item) {
-  uploadedKieEditImages = item ? [item] : [];
+function setKieEditSources(items, options = {}) {
+  const max = kieEditMaxImages();
+  const incoming = (Array.isArray(items) ? items : [items]).filter(Boolean);
+  const current = options.append ? uploadedKieEditImages : [];
+  uploadedKieEditImages = [...current, ...incoming].slice(0, max);
   updateKieEditSourcePreview();
   saveAppState();
+}
+
+function setKieEditSource(item) {
+  setKieEditSources(item ? [item] : []);
 }
 
 function updateKieEditSourcePreview() {
   const grid = qs('kieEditPreviewGrid');
   const label = qs('kieEditSourceLabel');
   if (!grid) return;
+  clearPreviewBlobUrls(grid);
+  const max = kieEditMaxImages();
+  if (uploadedKieEditImages.length > max) {
+    uploadedKieEditImages = uploadedKieEditImages.slice(0, max);
+  }
   grid.innerHTML = '';
-  const item = uploadedKieEditImages[0];
-  if (!item) {
+  if (!uploadedKieEditImages.length) {
     if (label) label.textContent = 'Выберите фото или нажмите "Редактировать" у результата';
+    _updateKieEditDropzoneHint(max);
     return;
   }
-  const src = typeof item === 'string'
-    ? item
-    : (item && item.url ? item.url : URL.createObjectURL(item));
-  const tile = document.createElement('div');
-  tile.className = 'upload-preview-item';
-  tile.innerHTML = `<img src="${escapeHtml(src)}" alt=""><button type="button" onclick="clearKieEditSource()"><i data-lucide="x"></i></button>`;
-  grid.appendChild(tile);
-  if (label) label.textContent = 'Фото готово для редактирования';
+
+  const badge = document.createElement('div');
+  badge.className = 'edit-img-count';
+  badge.textContent = `${uploadedKieEditImages.length} / ${max}`;
+  grid.appendChild(badge);
+
+  uploadedKieEditImages.forEach((item, index) => {
+    const src = typeof item === 'string'
+      ? item
+      : getPreviewSrcForAssetItem(item, grid);
+    const tile = document.createElement('div');
+    tile.className = 'upload-preview-item';
+
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = getAssetItemName(item, 'image');
+    tile.appendChild(img);
+
+    const numBadge = document.createElement('span');
+    numBadge.className = 'img-num-badge';
+    numBadge.textContent = index + 1;
+    tile.appendChild(numBadge);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'remove-btn';
+    removeBtn.title = 'Remove';
+    removeBtn.innerHTML = '<i data-lucide="x"></i>';
+    removeBtn.onclick = () => removeKieEditSource(index);
+    tile.appendChild(removeBtn);
+
+    grid.appendChild(tile);
+  });
+
+  if (label) label.textContent = `Выбрано фото: ${uploadedKieEditImages.length}`;
+  _updateKieEditDropzoneHint(max);
   if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
 }
+
+function _updateKieEditDropzoneHint(max) {
+  const zone = qs('kieEditDropzone');
+  if (!zone) return;
+  let hint = zone.querySelector('.edit-max-hint');
+  if (uploadedKieEditImages.length < max) {
+    if (!hint) {
+      hint = document.createElement('span');
+      hint.className = 'edit-max-hint';
+      zone.appendChild(hint);
+    }
+    hint.textContent = `Можно выбрать несколько фото (до ${max})`;
+  } else if (hint) {
+    hint.remove();
+  }
+}
+
+function removeKieEditSource(index) {
+  uploadedKieEditImages.splice(index, 1);
+  updateKieEditSourcePreview();
+  saveAppState();
+}
+window.removeKieEditSource = removeKieEditSource;
 
 function clearKieEditSource() {
   uploadedKieEditImages = [];
@@ -8007,8 +8081,17 @@ function initKieEditControls() {
   if (input && !input.dataset.kieEditBound) {
     input.dataset.kieEditBound = 'true';
     input.addEventListener('change', () => {
-      const file = input.files && input.files[0] ? input.files[0] : null;
-      if (file) setKieEditSource(file);
+      const files = Array.from(input.files || []);
+      if (files.length) {
+        const max = kieEditMaxImages();
+        const remaining = max - uploadedKieEditImages.length;
+        if (remaining <= 0) {
+          showToast(`Максимум ${max} фото`, 'error');
+        } else {
+          setKieEditSources(files.slice(0, remaining), { append: true });
+          if (files.length > remaining) showToast(`Добавлено ${remaining} из ${files.length}. Максимум ${max} фото`);
+        }
+      }
       input.value = '';
     });
   }
@@ -9564,7 +9647,7 @@ async function submitToolsRequest(task) {
 async function submitKieEditRequest(task) {
   const modelId = qs('kieEditModel') ? qs('kieEditModel').value : DEFAULT_KIE_EDIT_MODEL;
   const isGptModel = modelId === KIE_GPT_IMAGE_2_EDIT_MODEL_ID;
-  const imageUrls = await resolveUploadItemKieInputs(uploadedKieEditImages, 'kie-edit-source', task, 1);
+  const imageUrls = await resolveUploadItemKieInputs(uploadedKieEditImages, 'kie-edit-source', task, kieEditMaxImages());
   if (!imageUrls.length) throw new Error('Select an image to edit');
   const body = {
     model_id: modelId,
@@ -13647,6 +13730,7 @@ async function wizIdbSaveImages() {
     const prodArr = await safeB64Arr(uploadedToolsImages);
     const inspoArr = await safeB64Arr(uploadedInspoImages);
     const editArr = await safeB64Arr(uploadedImageFiles);
+    const kieEditArr = await safeB64Arr(uploadedKieEditImages);
     const utilitySource = getToolsUtilitySource();
     const utilityAudioSource = getToolsUtilityAudioSource();
     const utilityVideoSource = getToolsUtilityVideoSource();
@@ -13677,6 +13761,7 @@ async function wizIdbSaveImages() {
     store.put(prodArr, 'productImages');
     store.put(inspoArr, 'inspoImages');
     store.put(editArr, 'editImages');
+    store.put(kieEditArr, 'kieEditImages');
     store.put(utilityItem, 'utilityImage');
     store.put(utilityAudioItem, 'utilityAudio');
     store.put(utilityVideoItem, 'utilityVideo');
@@ -13688,7 +13773,7 @@ async function wizIdbSaveImages() {
 async function wizIdbRestoreImages() {
   try {
     const db = await _wizIdbOpen();
-    const idbKeys = ['productImages', 'inspoImages', 'editImages', 'utilityImage', 'utilityAudio', 'utilityVideo', 'managedUploads'];
+    const idbKeys = ['productImages', 'inspoImages', 'editImages', 'kieEditImages', 'utilityImage', 'utilityAudio', 'utilityVideo', 'managedUploads'];
     const results = await new Promise((resolve, reject) => {
       const tx = db.transaction('files', 'readonly');
       const store = tx.objectStore('files');
@@ -13723,6 +13808,10 @@ async function wizIdbRestoreImages() {
     if (Array.isArray(results.editImages)) {
       uploadedImageFiles = results.editImages.map(b64ToFile).filter(Boolean);
       if (typeof updateImagePreview === 'function') updateImagePreview();
+    }
+    if (Array.isArray(results.kieEditImages)) {
+      uploadedKieEditImages = results.kieEditImages.map(b64ToFile).filter(Boolean);
+      if (typeof updateKieEditSourcePreview === 'function') updateKieEditSourcePreview();
     }
     const restoreSingleManagedUpload = (idbItem, config, localSetter) => {
       const restored = b64ToFile(idbItem);

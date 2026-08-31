@@ -1639,17 +1639,18 @@
                             </button>
                         </div>
 
-                        <label class="group-label">Исходное фото</label>
+                        <label class="group-label">Исходные фото</label>
                         <div class="upload-zone" onclick="document.getElementById('kieEditImageInput').click()" id="kieEditDropzone">
                             <i data-lucide="image-plus"></i>
                             <span id="kieEditSourceLabel">Выберите фото или нажмите "Редактировать" у результата</span>
-                            <input type="file" id="kieEditImageInput" accept="image/*" hidden>
+                            <input type="file" id="kieEditImageInput" accept="image/*" multiple hidden>
                         </div>
                         <div id="kieEditPreviewGrid" class="upload-preview-grid"></div>
 
                         <div class="control-group kie-edit-prompt-group">
                             <label class="group-label" for="kieEditPrompt">Промпт редактирования</label>
                             <textarea id="kieEditPrompt" class="wiz-textarea" rows="4" placeholder="Например: сохрани товар, замени фон на премиальный светлый интерьер, добавь аккуратные тени и рекламную композицию..."></textarea>
+                            <span class="prompt-img-ref-hint">Можно ссылаться на фото в промпте: @1, @2, @3...</span>
                         </div>
 
                         <div class="settings-grid kie-edit-settings">
